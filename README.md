@@ -1,13 +1,15 @@
 # llamaparse-plugin
 
-A Claude Cowork / Claude Code plugin that bundles a single skill, `llamaparse`, for parsing documents with [LlamaIndex's hosted LlamaParse API](https://cloud.llamaindex.ai). Once installed, the skill auto-triggers whenever you ask Claude to parse a PDF, scan, Office doc, or other complex document, and it works across every Cowork session — no per-project setup.
+A Claude plugin (works in **Claude Cowork** and **Claude Code**) that bundles a single skill, `llamaparse`, for parsing documents with [LlamaIndex's hosted LlamaParse API](https://cloud.llamaindex.ai). Once installed, the skill auto-triggers whenever you ask Claude to parse a PDF, scan, Office doc, or other complex document.
+
+> **API v2 only.** This plugin uses the new `llama-cloud` Python SDK and the v2 REST endpoints. The legacy `llama-cloud-services` / `llama-parse` packages (v1) are deprecated by LlamaIndex and slated for archive after May 1, 2026, and are not supported here.
 
 ## What's inside
 
 ```
 llamaparse-plugin/
 ├── .claude-plugin/
-│   ├── marketplace.json            — marketplace manifest (root of repo)
+│   ├── marketplace.json            — marketplace manifest
 │   └── plugin.json                 — plugin manifest
 ├── LICENSE
 ├── README.md
@@ -18,59 +20,89 @@ llamaparse-plugin/
         ├── scripts/
         │   └── parse_document.py   — driver script (SDK with REST fallback)
         └── references/
-            ├── rest_api.md         — REST API reference
+            ├── rest_api.md         — v2 REST API reference
             └── troubleshooting.md  — common failure modes and fixes
 ```
 
-## Install (recommended: from GitHub)
+## Install in Claude Cowork
 
-This installs the plugin globally for your Cowork user — every session and every project on this machine will pick up the `llamaparse` skill automatically.
+Cowork manages plugins through the **Customize** menu — there's no `/plugin` slash command in Cowork.
 
-In Cowork, open the slash menu and run:
+1. Open Claude Desktop and switch to the **Cowork** tab.
+2. Click **Customize** in the left sidebar.
+3. Click the **+** button → **Add marketplace from GitHub**.
+4. Enter `acrosley/llamaparse-plugin` (or your fork's `<owner>/<repo>`).
+5. Once the marketplace appears, find `llamaparse-plugin` and click **Install**.
+6. Fully quit Cowork from the system tray and relaunch.
+
+After the restart, the skill auto-loads in every Cowork session on your machine.
+
+To pull updates later, return to **Customize** and refresh the marketplace.
+
+### Local-folder install (for plugin development)
+
+If you've cloned the repo and want to test changes without pushing:
+
+1. **Customize** → **+** → **Add marketplace from local folder**
+2. Point it at the cloned `llamaparse-plugin` directory
+3. Install as above
+
+## Install in Claude Code
+
+Claude Code does support the slash-command flow:
 
 ```
 /plugin marketplace add acrosley/llamaparse-plugin
 /plugin install llamaparse-plugin@llamaparse
 ```
 
-To pull updates later:
+Updates:
 
 ```
 /plugin marketplace update llamaparse
 ```
 
-To uninstall:
+Uninstall:
 
 ```
 /plugin uninstall llamaparse-plugin@llamaparse
 /plugin marketplace remove llamaparse
 ```
 
-## Install (alternative: local clone)
-
-If you'd rather run from a working copy on disk:
-
-```
-/plugin marketplace add C:\path\to\llamaparse-plugin
-/plugin install llamaparse-plugin@llamaparse
-```
-
-Cowork will read `.claude-plugin/marketplace.json` from that path. Useful while iterating on the skill itself.
-
 ## Prerequisites
 
-1. **API key.** Get one from <https://cloud.llamaindex.ai/api-key>. Set it as a persistent user environment variable (PowerShell):
-   ```powershell
-   setx LLAMA_CLOUD_API_KEY "llx-..."
-   ```
-   Fully quit and relaunch Cowork after `setx` so the new env var propagates into the sandbox.
+### 1. API key
 
-2. **Network access.** The Cowork sandbox must be allowed to reach `api.cloud.llamaindex.ai`. If you see `403 Forbidden` from the proxy, add the host under Settings → Capabilities → network allowlist (or, on Team/Enterprise, ask an org owner to do it in Admin settings), then fully restart Cowork.
+Get one from <https://cloud.llamaindex.ai/api-key> and set it as a persistent environment variable:
 
-3. **Python deps.** Auto-installed inside the sandbox the first time the skill runs:
-   ```bash
-   pip install llama-cloud-services --break-system-packages
-   ```
+**macOS / Linux** (bash/zsh):
+
+```bash
+echo 'export LLAMA_CLOUD_API_KEY="llx-..."' >> ~/.zshrc   # or ~/.bashrc
+source ~/.zshrc
+```
+
+**Windows** (PowerShell):
+
+```powershell
+setx LLAMA_CLOUD_API_KEY "llx-..."
+```
+
+Restart Claude (Cowork or Claude Code) afterward so the new env var propagates into the sandbox.
+
+### 2. Network access
+
+The Cowork sandbox uses an HTTPS allowlist. If you see `403 Forbidden` from the proxy when calling `api.cloud.llamaindex.ai`, add the host under **Settings → Capabilities → network allowlist** (Team/Enterprise plans require an org owner to do this in Admin settings), then fully restart Cowork. Claude Code does not have this restriction.
+
+### 3. Python deps
+
+Auto-installed inside the sandbox the first time the skill runs:
+
+```bash
+pip install llama-cloud --break-system-packages
+```
+
+Do **not** install `llama-cloud-services` — that's the v1 package and is not used by this plugin.
 
 ## How to invoke the skill
 
@@ -86,18 +118,20 @@ You can also invoke it explicitly via the slash menu: `/llamaparse-plugin:llamap
 
 LlamaParse charges credits per page, scaled by tier:
 
-| Tier            | Approx multiplier   | Notes                                |
-|-----------------|---------------------|--------------------------------------|
-| `fast`          | ~1 cr/page          | Text-only — no markdown              |
-| `cost_effective`| ~3 cr/page          | Default; balanced quality            |
-| `agentic`       | ~15 cr/page         | Better tables / layout               |
-| `agentic_plus`  | ~30+ cr/page        | Best quality, most expensive         |
+| Tier             | Approx multiplier | Best for                                  |
+|------------------|-------------------|-------------------------------------------|
+| `fast`           | ~1 cr/page        | Plain text, simple layouts                |
+| `cost_effective` | ~3 cr/page        | Default; balanced quality                 |
+| `agentic`        | ~15 cr/page       | Tables, multi-column, mixed media         |
+| `agentic_plus`   | ~30+ cr/page      | Dense tables, charts, the hardest documents |
 
-The skill always counts pages first and confirms the estimated cost (`pages × multiplier`) before parsing anything over ~10 pages. Verify current pricing at <https://cloud.llamaindex.ai> before committing to large batches.
+In v2, all four tiers can return markdown — the v1 "fast tier is text-only" restriction is gone.
 
-## Updating
+The skill counts pages first and confirms the estimated cost (`pages × multiplier`) before parsing anything over ~10 pages. Verify current pricing at <https://cloud.llamaindex.ai> before committing to large batches.
 
-Bump `version` in both `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`, commit, and push. Users pull the new version with `/plugin marketplace update llamaparse`.
+## Updating the plugin
+
+Bump `version` in both `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`, commit, and push. Users pull the new version through their host's update flow (Customize → refresh in Cowork; `/plugin marketplace update llamaparse` in Claude Code).
 
 ## License
 
