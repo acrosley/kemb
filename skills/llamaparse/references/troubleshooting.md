@@ -53,8 +53,7 @@ In v2, both `tier` and `version` are required fields in the `configuration` JSON
 ```json
 {
   "tier": "cost_effective",
-  "version": "latest",
-  "input_options": { "language": "en" }
+  "version": "latest"
 }
 ```
 
@@ -82,11 +81,11 @@ The file exceeds LlamaParse's per-job size cap (around 300MB at time of writing)
 
 A few things to check, in order:
 
-1. **Wrong language**. If the document is non-English, set `--language es` (or whatever code matches). LlamaParse defaults to `en` and that hurts OCR on other-language scans.
-2. **Tier too low for the document.** Complex layouts, small fonts, or noisy scans benefit from `agentic` or `agentic_plus`. The default `cost_effective` is a good starting point but isn't optimal for everything.
-3. **Encrypted PDF**. LlamaParse can't open a password-protected PDF. Decrypt first with `qpdf --decrypt`.
-4. **Scanned image with low DPI**. If pages are sub-150-DPI scans, OCR quality will be poor regardless of parser. Suggest re-scanning or running the source through an image upscaler first.
-5. **Wrong result type**. `text` strips formatting — for tables or layout-sensitive content, use `markdown`.
+1. **Tier too low for the document.** Complex layouts, small fonts, or noisy scans benefit from `agentic` or `agentic_plus`. The default `cost_effective` is a good starting point but isn't optimal for everything.
+2. **Encrypted PDF**. LlamaParse can't open a password-protected PDF. Decrypt first with `qpdf --decrypt`.
+3. **Scanned image with low DPI**. If pages are sub-150-DPI scans, OCR quality will be poor regardless of parser. Suggest re-scanning or running the source through an image upscaler first.
+4. **Wrong result type**. `text` strips formatting — for tables or layout-sensitive content, use `markdown`.
+5. **Non-English document**. v2 auto-detects language; the v1 `input_options.language` override was removed. If detection fails on a non-English doc, check the current LlamaIndex docs for any new override path before assuming the parser is broken.
 
 ## SDK or REST response shape changed unexpectedly
 

@@ -26,14 +26,15 @@ Minimal:
 ```json
 {
   "tier": "cost_effective",
-  "version": "latest",
-  "input_options": { "language": "en" }
+  "version": "latest"
 }
 ```
 
 Tier values: `fast`, `cost_effective`, `agentic`, `agentic_plus`. v2 supports markdown output on every tier.
 
 Version: `"latest"` for the most recent stable release, or a dated pin like `"2026-01-08"` for reproducible production runs.
+
+Language is auto-detected in v2. The v1 `input_options.language` field was removed and is no longer accepted — sending it returns `422 extra_forbidden`.
 
 Common additions:
 - `output_options.images_to_save` — extract embedded images
@@ -123,7 +124,7 @@ The response body usually carries a JSON `{"detail": "..."}` describing the prob
 JOB=$(curl -s -X POST https://api.cloud.llamaindex.ai/api/v2/parse/upload \
   -H "Authorization: Bearer $LLAMA_CLOUD_API_KEY" \
   -F "file=@./report.pdf" \
-  -F 'configuration={"tier":"cost_effective","version":"latest","input_options":{"language":"en"}};type=application/json' \
+  -F 'configuration={"tier":"cost_effective","version":"latest"};type=application/json' \
   | jq -r .id)
 
 # 2. Poll until COMPLETED.

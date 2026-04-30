@@ -64,11 +64,13 @@ Flags:
 
 - `--result-type {markdown,text}` — output format (default: `markdown`)
 - `--output PATH` — destination file (default: `<input>.md` next to the input)
-- `--language CODE` — document language hint, e.g. `en`, `es` (default: `en`)
 - `--tier {fast,cost_effective,agentic,agentic_plus}` — quality/cost tier (default: `cost_effective`)
 - `--version` — parse model version (default: `latest`); pin to e.g. `2026-01-08` for reproducibility
+- `--strip-noise` — post-process the output to drop LlamaParse layout-hint HTML comments (`<!-- layout: ... -->`) and recurring header/footer image refs (alt text seen 3+ times). Off by default; useful for narrative documents like deposition transcripts and reports where these artifacts are pure noise.
 - `--rest` — force the REST path even if the SDK is installed (useful for debugging)
 - `--poll-timeout SECONDS` — REST mode only; defaults to 300
+
+> v2 auto-detects document language. The v1 `input_options.language` field was removed by LlamaIndex and is no longer accepted — sending it produces a `422 extra_forbidden` error.
 
 If the SDK isn't installable, `--rest` works with just the `requests` library.
 
@@ -88,7 +90,6 @@ result = client.parsing.parse(
     file_id=uploaded.id,
     tier="cost_effective",          # fast | cost_effective | agentic | agentic_plus
     version="latest",                # or pin: "2026-01-08"
-    input_options={"language": "en"},
     expand=["markdown"],             # or ["text"], or both
 )
 

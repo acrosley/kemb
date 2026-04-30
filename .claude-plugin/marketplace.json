@@ -10,7 +10,7 @@
       "name": "llamaparse-plugin",
       "source": "./",
       "description": "LlamaParse document parsing for Cowork (API v2). Parses PDFs, Word docs, Excel, scans, and other complex documents into clean markdown or text via LlamaIndex's hosted LlamaParse v2 API.",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "author": {
         "name": "Andrew Crosley",
         "email": "crosleya1394@gmail.com"

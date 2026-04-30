@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -23,6 +24,12 @@ from pathlib import Path
 REST_BASE = "https://api.cloud.llamaindex.ai/api/v2/parse"
 TIERS = ("fast", "cost_effective", "agentic", "agentic_plus")
 DEFAULT_VERSION = "latest"
+
+# Patterns used by --strip-noise.
+_LAYOUT_COMMENT_RE = re.compile(r"<!--\s*layout:[^>]*-->\s*\n?")
+_IMAGE_REF_RE = re.compile(
+    r"!\[(?P<alt>[^\]]*)\]\((?P<src>[^)]*page_\d+_image_\d+[^)]*)\)\s*\n?"
+)
 
 
 def _err(msg, code=2):
@@ -38,7 +45,26 @@ def _require_api_key():
     return key
 
 
-def parse_with_sdk(input_path, result_type, language, tier, version):
+def _surface_api_error(label, exc):
+    """Print the upstream API response body verbatim, then exit cleanly.
+
+    The llama-cloud SDK raises subclasses of `ApiError` carrying a `body` attr
+    with the parsed JSON response. Falling back to repr(exc) preserves the
+    error chain for unexpected exception types.
+    """
+    body = getattr(exc, "body", None)
+    if body is None:
+        resp = getattr(exc, "response", None)
+        if resp is not None:
+            body = getattr(resp, "text", None) or repr(resp)
+    if body is None:
+        body = repr(exc)
+    if isinstance(body, (dict, list)):
+        body = json.dumps(body, indent=2, default=str)
+    _err(f"{label} ({type(exc).__name__}): {body}", code=3)
+
+
+def parse_with_sdk(input_path, result_type, tier, version):
     """Parse via the v2 `llama-cloud` SDK.
 
     Shape (April 2026):
@@ -49,7 +75,6 @@ def parse_with_sdk(input_path, result_type, language, tier, version):
             file_id=f.id,
             tier="cost_effective",
             version="latest",
-            input_options={"language": "en"},
             expand=["markdown"] or ["text"],
         )
         # markdown:  result.markdown.pages[i].markdown
@@ -71,8 +96,11 @@ def parse_with_sdk(input_path, result_type, language, tier, version):
 
     expand = ["markdown"] if result_type == "markdown" else ["text"]
 
-    with open(input_path, "rb") as fh:
-        uploaded = client.files.create(file=fh, purpose="parse")
+    try:
+        with open(input_path, "rb") as fh:
+            uploaded = client.files.create(file=fh, purpose="parse")
+    except Exception as e:
+        _surface_api_error("file upload failed", e)
 
     file_id = getattr(uploaded, "id", None) or (
         uploaded.get("id") if isinstance(uploaded, dict) else None
@@ -80,13 +108,15 @@ def parse_with_sdk(input_path, result_type, language, tier, version):
     if not file_id:
         _err(f"file upload returned no id: {uploaded!r}", code=3)
 
-    result = client.parsing.parse(
-        file_id=file_id,
-        tier=tier,
-        version=version,
-        input_options={"language": language},
-        expand=expand,
-    )
+    try:
+        result = client.parsing.parse(
+            file_id=file_id,
+            tier=tier,
+            version=version,
+            expand=expand,
+        )
+    except Exception as e:
+        _surface_api_error("parse request failed", e)
 
     return _extract_sdk_result(result, result_type)
 
@@ -124,7 +154,7 @@ def _extract_sdk_result(result, result_type):
     return "\n\n".join(chunks)
 
 
-def parse_with_rest(input_path, result_type, language, tier, version, poll_timeout):
+def parse_with_rest(input_path, result_type, tier, version, poll_timeout):
     """Parse via the v2 REST API. Only requires the `requests` package."""
     try:
         import requests  # type: ignore
@@ -137,7 +167,6 @@ def parse_with_rest(input_path, result_type, language, tier, version, poll_timeo
     configuration = {
         "tier": tier,
         "version": version,
-        "input_options": {"language": language},
     }
 
     # POST /api/v2/parse/upload — multipart with file + configuration JSON.
@@ -228,6 +257,39 @@ def _extract_rest_field(obj, key):
     return None
 
 
+def strip_noise(text, repeat_threshold=3):
+    """Drop pure-noise artifacts from LlamaParse markdown.
+
+    Removes:
+    - `<!-- layout: ... -->` HTML comments (LlamaParse layout hints; no signal).
+    - Image refs whose alt text recurs `repeat_threshold` or more times across
+      the document. This catches recurring page-header/footer logos while
+      preserving single-instance exhibits.
+
+    Returns: (cleaned_text, layout_dropped, images_dropped)
+    """
+    layout_dropped = len(_LAYOUT_COMMENT_RE.findall(text))
+    text = _LAYOUT_COMMENT_RE.sub("", text)
+
+    alt_counts = {}
+    for m in _IMAGE_REF_RE.finditer(text):
+        alt = m.group("alt").strip()
+        alt_counts[alt] = alt_counts.get(alt, 0) + 1
+
+    repeating_alts = {alt for alt, n in alt_counts.items() if n >= repeat_threshold}
+    images_dropped = 0
+
+    def _maybe_drop(m):
+        nonlocal images_dropped
+        if m.group("alt").strip() in repeating_alts:
+            images_dropped += 1
+            return ""
+        return m.group(0)
+
+    text = _IMAGE_REF_RE.sub(_maybe_drop, text)
+    return text, layout_dropped, images_dropped
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(
         description="Parse a document with LlamaParse (API v2).")
@@ -239,7 +301,12 @@ def main(argv=None):
     p.add_argument("--version", default=DEFAULT_VERSION,
                    help="Parse model version. 'latest' (default) or a dated pin "
                         "like '2026-01-08'.")
-    p.add_argument("--language", default="en")
+    p.add_argument("--strip-noise", action="store_true",
+                   help="Post-process the output to drop LlamaParse layout-hint "
+                        "HTML comments and recurring header/footer image refs "
+                        "(alt text seen 3+ times). Off by default to preserve "
+                        "raw output; safe to enable for narrative documents "
+                        "like deposition transcripts and reports.")
     p.add_argument("--rest", action="store_true",
                    help="Force REST path even if SDK is installed.")
     p.add_argument("--poll-timeout", type=float, default=300.0)
@@ -253,16 +320,21 @@ def main(argv=None):
     out_path = args.output or args.input.with_suffix(ext)
 
     if args.rest:
-        text = parse_with_rest(args.input, args.result_type, args.language,
+        text = parse_with_rest(args.input, args.result_type,
                                args.tier, args.version, args.poll_timeout)
     else:
         try:
-            text = parse_with_sdk(args.input, args.result_type, args.language,
+            text = parse_with_sdk(args.input, args.result_type,
                                   args.tier, args.version)
         except ImportError as e:
             print(f"note: {e}\nfalling back to REST.", file=sys.stderr)
-            text = parse_with_rest(args.input, args.result_type, args.language,
+            text = parse_with_rest(args.input, args.result_type,
                                    args.tier, args.version, args.poll_timeout)
+
+    if args.strip_noise:
+        text, layout_dropped, images_dropped = strip_noise(text)
+        print(f"strip-noise: dropped {layout_dropped} layout comments, "
+              f"{images_dropped} repeating image refs", file=sys.stderr)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(text, encoding="utf-8")
