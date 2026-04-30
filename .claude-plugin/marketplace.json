@@ -1,0 +1,31 @@
+{
+  "name": "llamaparse",
+  "owner": {
+    "name": "Andrew Crosley",
+    "email": "crosleya1394@gmail.com",
+    "url": "https://github.com/acrosley"
+  },
+  "plugins": [
+    {
+      "name": "llamaparse-plugin",
+      "source": "./",
+      "description": "LlamaParse document parsing for Cowork. Parses PDFs, Word docs, Excel, scans, and other complex documents into clean markdown or text via the LlamaParse hosted API.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Andrew Crosley",
+        "email": "crosleya1394@gmail.com"
+      },
+      "homepage": "https://github.com/acrosley/llamaparse-plugin",
+      "license": "MIT",
+      "keywords": [
+        "llamaparse",
+        "llamacloud",
+        "pdf",
+        "ocr",
+        "document-parsing",
+        "markdown",
+        "extraction"
+      ]
+    }
+  ]
+}
