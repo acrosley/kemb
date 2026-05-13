@@ -9,8 +9,8 @@
     {
       "name": "llamaparse-plugin",
       "source": "./",
-      "description": "LlamaParse document parsing for Cowork (API v2). Parses PDFs, Word docs, Excel, scans, and other complex documents into clean markdown or text via LlamaIndex's hosted LlamaParse v2 API.",
-      "version": "0.4.0",
+      "description": "LlamaCloud document operations for Claude Code and Cowork: parse PDFs/Office docs/scans to markdown, extract structured JSON against a schema (LlamaExtract), categorize documents with confidence scores (LlamaClassify), and split long documents into typed sections (LlamaSplit beta). Each capability ships as its own lazy-loaded skill so feature context only enters Claude's window when needed.",
+      "version": "0.5.0",
       "author": {
         "name": "Andrew Crosley",
         "email": "crosleya1394@gmail.com"
@@ -19,12 +19,16 @@
       "license": "MIT",
       "keywords": [
         "llamaparse",
+        "llamaextract",
+        "llamaclassify",
+        "llamasplit",
         "llamacloud",
         "pdf",
         "ocr",
         "document-parsing",
-        "markdown",
-        "extraction"
+        "structured-extraction",
+        "classification",
+        "markdown"
       ]
     }
   ]

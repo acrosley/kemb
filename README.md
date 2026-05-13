@@ -1,14 +1,23 @@
 # llamaparse-plugin
 
-A Claude plugin **and** a tiny standalone CLI for parsing documents with
-[LlamaIndex's hosted LlamaParse v2 API](https://cloud.llamaindex.ai).
+A Claude plugin **and** a tiny standalone CLI for four LlamaCloud document
+operations: **parse**, **extract**, **classify**, and **split**. Built on
+[LlamaIndex's hosted APIs](https://cloud.llamaindex.ai) — LlamaParse v2,
+LlamaExtract v2, LlamaClassify v2, and LlamaSplit v1 beta.
 
-Same code path in both modes:
+| Capability | What it does | API |
+|---|---|---|
+| **parse** | Document → clean markdown / text (tables, multi-column, scans) | LlamaParse v2 |
+| **extract** | Document + JSON Schema → typed JSON object | LlamaExtract v2 |
+| **classify** | Document + categories → matched label + confidence | LlamaClassify v2 |
+| **split** | Document + categories → typed sections with page ranges | LlamaSplit v1 beta |
+
+Two ways to use them:
 
 | Mode | What you run | What it gives you |
 |---|---|---|
-| Plugin | `/plugin install llamaparse-plugin@llamaparse` in Claude Code (or "Add marketplace from GitHub" in Cowork) | A `llamaparse` skill that auto-triggers when you ask Claude to parse a PDF / scan / Office doc |
-| CLI | `pipx install git+https://github.com/acrosley/llamaparse-plugin` | A `llamaparse` command on your PATH |
+| Plugin | `/plugin install llamaparse-plugin@llamaparse` in Claude Code (or "Add marketplace from GitHub" in Cowork) | Four lazy-loaded skills (`llamaparse`, `llamaextract`, `llamaclassify`, `llamasplit`). Only the relevant skill's context loads for any given request. |
+| CLI | `pipx install git+https://github.com/acrosley/llamaparse-plugin` | A `llamaparse` command on your PATH with four subcommands |
 
 You only need a LlamaCloud API key. Get one at
 <https://cloud.llamaindex.ai/api-key>.
@@ -45,20 +54,67 @@ or, if you don't have pipx:
 pip install git+https://github.com/acrosley/llamaparse-plugin
 ```
 
-That gives you a `llamaparse` command:
+That gives you a `llamaparse` command with four subcommands:
 
 ```bash
-llamaparse ./contract.pdf                       # → contract.md
-llamaparse ./scan.pdf --tier agentic            # agentic tier
-llamaparse ./report.pdf --output ./out.md       # explicit output path
-llamaparse ./report.pdf --result-type text      # → report.txt
-llamaparse ./report.pdf --strip-noise           # drop layout-hint comments
-llamaparse ./report.pdf --rest                  # force REST path (no SDK)
-llamaparse --help
+llamaparse --help                              # top-level help (lists subcommands)
+llamaparse parse     --help
+llamaparse extract   --help
+llamaparse classify  --help
+llamaparse split     --help
 ```
 
-The CLI installs `llama-cloud` and `requests` automatically as
-dependencies, so nothing else is needed.
+### parse — document → markdown / text
+
+```bash
+llamaparse parse ./contract.pdf                       # → contract.md
+llamaparse parse ./scan.pdf --tier agentic            # agentic tier
+llamaparse parse ./report.pdf --output ./out.md       # explicit output path
+llamaparse parse ./report.pdf --result-type text      # → report.txt
+llamaparse parse ./report.pdf --strip-noise           # drop layout-hint comments
+llamaparse parse ./report.pdf --rest                  # force REST path (no SDK)
+```
+
+**Backward compat:** `llamaparse ./file.pdf [...]` (no subcommand) still works
+and is dispatched as `parse` so existing scripts and workflows don't break.
+
+### extract — document + JSON Schema → typed JSON
+
+```bash
+llamaparse extract ./invoice.pdf --schema @invoice_schema.json
+llamaparse extract ./form.pdf    --configuration-id cfg_abc123    # saved agent
+llamaparse extract ./doc.pdf     --schema '{"type":"object","properties":{"name":{"type":"string"}}}'
+```
+
+The schema is a JSON Schema describing the shape you want back. Save once,
+pass with `@path.json`, or inline small ones. Output defaults to
+`<input>.extract.json`.
+
+### classify — document + categories → label + confidence
+
+```bash
+llamaparse classify ./doc.pdf --rules @rules.json
+llamaparse classify ./doc.pdf --rules '[{"type":"invoice","description":"A bill requesting payment"}]'
+llamaparse classify ./doc.pdf --mode multimodal       # use vision for scans/layout-heavy
+```
+
+`--rules` is a JSON list of `{type, description}` objects. The classifier
+returns `{type, confidence, reasoning}`. Output defaults to
+`<input>.classify.json`.
+
+### split — long document → typed sections with page ranges
+
+```bash
+llamaparse split ./report.pdf --categories @cats.json
+llamaparse split ./report.pdf --categories '[{"name":"intro","description":"Opening summary"}]'
+llamaparse split ./report.pdf --splitting-strategy semantic
+```
+
+LlamaSplit is currently a **v1 beta** endpoint — its response shape may
+evolve. Output defaults to `<input>.split.json`.
+
+The CLI installs `llama-cloud` and `requests` automatically as dependencies,
+so nothing else is needed.
 
 ## Install — Claude Code plugin
 
@@ -75,17 +131,22 @@ Updates / removal:
 /plugin marketplace remove llamaparse
 ```
 
-After installation the skill auto-triggers on requests like:
+After installation, four lazy-loaded skills become available. Each has its
+own trigger conditions; only the matching skill's context is pulled into
+Claude's window per request:
 
-- "Parse this PDF with LlamaParse and give me clean markdown."
-- "OCR this scan."
-- "Extract the tables from contract.pdf."
+| Skill | Triggers on requests like |
+|---|---|
+| `llamaparse` | "Parse this PDF with LlamaParse." / "OCR this scan." / "Convert this Excel to markdown." |
+| `llamaextract` | "Extract invoice number and total from this PDF." / "Pull fields out as JSON using this schema." |
+| `llamaclassify` | "Classify this document — is it a contract, invoice, or receipt?" / "Route incoming docs by type." |
+| `llamasplit` | "Split this long report into intro / methodology / results / appendix sections." |
 
-You can also invoke it explicitly via the slash menu:
-`/llamaparse-plugin:llamaparse`.
+You can also invoke any of them explicitly via the slash menu:
+`/llamaparse-plugin:<skill>`.
 
-The first time the skill runs in a fresh sandbox it will `pip install
-llama-cloud` automatically (the bundled script passes `--auto-install`), so
+The first time a skill runs in a fresh sandbox it will `pip install
+llama-cloud` automatically (the bundled scripts pass `--auto-install`), so
 you don't need to set anything up beyond the API key.
 
 ## Install — Claude Cowork plugin
@@ -119,7 +180,10 @@ If you've cloned the repo and want to test changes without pushing:
 
 ## Cost
 
-LlamaParse charges credits per page, scaled by tier:
+All four capabilities are billed per page processed. Parse exposes a tier
+knob; extract / classify / split don't (one per-page rate each).
+
+**Parse tiers:**
 
 | Tier             | Approx multiplier | Best for                                       |
 |------------------|-------------------|------------------------------------------------|
@@ -128,9 +192,12 @@ LlamaParse charges credits per page, scaled by tier:
 | `agentic`        | ~15 cr/page       | Tables, multi-column, mixed media              |
 | `agentic_plus`   | ~30+ cr/page      | Dense tables, charts, the hardest documents    |
 
-All four tiers can return markdown in v2 (the v1 "fast = text-only"
+All four parse tiers can return markdown in v2 (the v1 "fast = text-only"
 restriction is gone). Verify current pricing at <https://cloud.llamaindex.ai>
 before committing to large batches.
+
+**Classify** has two `--mode` settings: `fast` (text-only, cheap) and
+`multimodal` (reads images and layout — better for scans).
 
 ## What's inside
 
@@ -141,19 +208,34 @@ llamaparse-plugin/
 │   └── plugin.json                 — plugin manifest
 ├── pyproject.toml                  — packaging for the `llamaparse` CLI
 ├── src/llamaparse_cli/
-│   ├── __init__.py
-│   └── _core.py                    — canonical parse implementation
-├── skills/llamaparse/
-│   ├── SKILL.md                    — skill definition
-│   ├── scripts/parse_document.py   — thin shim that calls llamaparse_cli._core
-│   └── references/
-│       ├── rest_api.md             — REST API reference
-│       └── troubleshooting.md      — common failure modes
+│   ├── __init__.py                 — public exports
+│   ├── _core.py                    — subcommand dispatcher (parse / extract / classify / split)
+│   ├── _common.py                  — shared helpers (auth, SDK loader, REST poller, file upload)
+│   ├── _parse.py                   — LlamaParse v2
+│   ├── _extract.py                 — LlamaExtract v2
+│   ├── _classify.py                — LlamaClassify v2
+│   └── _split.py                   — LlamaSplit v1 beta
+├── skills/
+│   ├── llamaparse/                 — parse → markdown/text
+│   │   ├── SKILL.md
+│   │   ├── scripts/parse_document.py
+│   │   └── references/{rest_api,troubleshooting}.md
+│   ├── llamaextract/               — schema-driven structured extraction
+│   │   ├── SKILL.md
+│   │   └── scripts/run_extract.py
+│   ├── llamaclassify/              — categorization with confidence
+│   │   ├── SKILL.md
+│   │   └── scripts/run_classify.py
+│   └── llamasplit/                 — section splitting (v1 beta)
+│       ├── SKILL.md
+│       └── scripts/run_split.py
 └── README.md
 ```
 
-Both modes share `src/llamaparse_cli/_core.py`, so the CLI and the skill
-never drift.
+Each skill is independent and lazy-loaded: Claude pulls in only the
+SKILL.md whose description matches the user's request, so feature context
+stays out of the window until needed. All four shell into the same
+`llamaparse_cli` package, so the CLI and the skills never drift.
 
 ## License
 

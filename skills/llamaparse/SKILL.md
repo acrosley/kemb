@@ -115,5 +115,7 @@ If parsing fails or returns unexpected output, see `references/troubleshooting.m
 ## What this skill does NOT do
 
 - Embedding or vector storage. Pair with a separate RAG pipeline.
-- LlamaExtract (structured-schema extraction) — sibling product in the same SDK. If the user wants schema-driven JSON extraction, mention it but don't try to fake it through LlamaParse.
+- Schema-driven structured extraction — that's the **`llamaextract`** sibling skill (LlamaExtract). If the user wants typed JSON fields out, route them there instead of trying to fake it through LlamaParse.
+- Single-label document classification with confidence scores — see the **`llamaclassify`** sibling skill (LlamaClassify).
+- Splitting a long document into typed sections by category — see the **`llamasplit`** sibling skill (LlamaSplit beta).
 - Store API keys. Keys come from the environment, every run.
