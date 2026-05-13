@@ -65,10 +65,10 @@ For reproducible production runs, pin `version` to a dated value like `"2026-01-
 
 ## Job stuck in `PENDING` / `RUNNING`
 
-Large or scanned documents can take several minutes. The bundled script defaults to a 300-second poll timeout. If a real job needs longer:
+Large or scanned documents can take several minutes. The bundled script defaults to a 600-second poll timeout. If a real job needs longer:
 
 ```bash
-python scripts/parse_document.py big.pdf --rest --poll-timeout 900
+python scripts/parse_document.py big.pdf --rest --poll-timeout 1800
 ```
 
 If a job genuinely hangs (stays `RUNNING` past 10 minutes for a normal-sized doc), it's worth canceling and resubmitting — occasionally a worker dies and the queue takes a while to notice.
@@ -91,7 +91,7 @@ A few things to check, in order:
 
 LlamaParse APIs evolve. If a script that worked yesterday breaks today on field names, check the SDK source at https://github.com/run-llama/llama-cloud-py and the API reference on the LlamaIndex docs site.
 
-The bundled script defends against several known v2 shape variations (e.g., `id` vs `job_id`, expanded content under `result` vs at top level, single string vs `pages` array). If a new variant appears, adjust `_extract_sdk_result` / `_extract_rest_field` in `scripts/parse_document.py` rather than working around it in user code.
+The bundled script defends against several known v2 shape variations (e.g., `id` vs `job_id`, expanded content under `result` vs at top level, single string vs `pages` array). If a new variant appears, adjust `_extract_sdk_result` / `_extract_rest_field` in `src/llamaparse_cli/_core.py` rather than working around it in user code. (`scripts/parse_document.py` is a thin shim that forwards into that module.)
 
 ## Rate limiting (`429`)
 
