@@ -1,0 +1,294 @@
+"""Tests for the ``probe`` subcommand and shared scanning helpers.
+
+All checks are local-only — probe never makes a network call.
+"""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+
+from llamaparse_cli import _core, _probe
+
+
+# ---------------------------------------------------------------------------
+# _normalize_extensions / _human_size
+# ---------------------------------------------------------------------------
+
+
+class TestNormalizeExtensions:
+    def test_none_returns_none(self):
+        assert _probe._normalize_extensions(None) is None
+
+    def test_empty_string_returns_none(self):
+        assert _probe._normalize_extensions("") is None
+
+    def test_adds_leading_dot(self):
+        assert _probe._normalize_extensions("pdf") == {".pdf"}
+
+    def test_lowercases(self):
+        assert _probe._normalize_extensions("PDF,DocX") == {".pdf", ".docx"}
+
+    def test_handles_dots_and_whitespace(self):
+        assert _probe._normalize_extensions(" .pdf , docx ") == {".pdf", ".docx"}
+
+
+class TestHumanSize:
+    def test_bytes(self):
+        assert _probe._human_size(512) == "512 B"
+
+    def test_kilobytes(self):
+        assert _probe._human_size(2048) == "2.0 KB"
+
+    def test_megabytes(self):
+        assert _probe._human_size(5 * 1024 * 1024) == "5.0 MB"
+
+    def test_gigabytes(self):
+        assert _probe._human_size(3 * 1024 ** 3) == "3.0 GB"
+
+
+# ---------------------------------------------------------------------------
+# scan_directory
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def sample_tree(tmp_path: Path) -> Path:
+    """Build a small directory tree for scan tests.
+
+    sample/
+      a.pdf
+      b.docx
+      notes.txt
+      raw.bin                 <- unsupported extension
+      .hidden.md              <- hidden file
+      .secret/                <- hidden directory
+        skip.pdf
+      sub/
+        c.pdf
+        deeper/
+          d.png
+    """
+    base = tmp_path / "sample"
+    base.mkdir()
+    (base / "a.pdf").write_bytes(b"%PDF-1.4 " + b"x" * 100)
+    (base / "b.docx").write_bytes(b"PK\x03\x04" + b"y" * 200)
+    (base / "notes.txt").write_text("hello world", encoding="utf-8")
+    (base / "raw.bin").write_bytes(b"\x00" * 50)
+    (base / ".hidden.md").write_text("secret notes", encoding="utf-8")
+
+    secret = base / ".secret"
+    secret.mkdir()
+    (secret / "skip.pdf").write_bytes(b"%PDF-hidden")
+
+    sub = base / "sub"
+    sub.mkdir()
+    (sub / "c.pdf").write_bytes(b"%PDF-1.4 sub")
+
+    deeper = sub / "deeper"
+    deeper.mkdir()
+    (deeper / "d.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+
+    return base
+
+
+class TestScanDirectory:
+    def test_visible_files_collected(self, sample_tree):
+        items = [e for e in _probe.scan_directory(sample_tree) if not e.get("_truncated")]
+        names = sorted(e["name"] for e in items)
+        # Hidden files and hidden directory contents are skipped by default.
+        assert names == ["a.pdf", "b.docx", "c.pdf", "d.png", "notes.txt", "raw.bin"]
+
+    def test_extension_filter(self, sample_tree):
+        items = [
+            e for e in _probe.scan_directory(sample_tree, extensions={".pdf"})
+            if not e.get("_truncated")
+        ]
+        names = sorted(e["name"] for e in items)
+        assert names == ["a.pdf", "c.pdf"]
+
+    def test_max_depth_zero_keeps_top_level_only(self, sample_tree):
+        items = [
+            e for e in _probe.scan_directory(sample_tree, max_depth=0)
+            if not e.get("_truncated")
+        ]
+        names = sorted(e["name"] for e in items)
+        # Top-level only (no sub/, no sub/deeper/).
+        assert names == ["a.pdf", "b.docx", "notes.txt", "raw.bin"]
+
+    def test_max_depth_one_includes_first_subdir(self, sample_tree):
+        items = [
+            e for e in _probe.scan_directory(sample_tree, max_depth=1)
+            if not e.get("_truncated")
+        ]
+        names = sorted(e["name"] for e in items)
+        # Includes sub/c.pdf but not sub/deeper/d.png.
+        assert "c.pdf" in names
+        assert "d.png" not in names
+
+    def test_include_hidden_picks_up_hidden_files_and_dirs(self, sample_tree):
+        items = [
+            e for e in _probe.scan_directory(sample_tree, include_hidden=True)
+            if not e.get("_truncated")
+        ]
+        names = sorted(e["name"] for e in items)
+        assert ".hidden.md" in names
+        assert "skip.pdf" in names
+
+    def test_supported_only_filters_unsupported_extensions(self, sample_tree):
+        items = [
+            e for e in _probe.scan_directory(sample_tree, supported_only=True)
+            if not e.get("_truncated")
+        ]
+        names = sorted(e["name"] for e in items)
+        # raw.bin has an unsupported extension, so it should be dropped.
+        assert "raw.bin" not in names
+        assert "a.pdf" in names
+
+    def test_max_files_truncates_with_sentinel(self, sample_tree):
+        items = list(_probe.scan_directory(sample_tree, max_files=2))
+        # Sentinel comes last when truncation kicks in.
+        assert items[-1].get("_truncated") is True
+        assert items[-1]["limit"] == 2
+        # Two file entries before the sentinel.
+        files = [e for e in items if not e.get("_truncated")]
+        assert len(files) == 2
+
+    def test_single_file_target_yields_one_entry(self, sample_tree):
+        items = list(_probe.scan_directory(sample_tree / "a.pdf"))
+        assert len(items) == 1
+        assert items[0]["name"] == "a.pdf"
+
+    def test_missing_target_exits(self, tmp_path: Path):
+        with pytest.raises(SystemExit):
+            list(_probe.scan_directory(tmp_path / "does-not-exist"))
+
+
+# ---------------------------------------------------------------------------
+# summarize
+# ---------------------------------------------------------------------------
+
+
+class TestSummarize:
+    def test_aggregates_counts_and_bytes(self):
+        entries = [
+            {"extension": ".pdf", "size": 100, "supported": True, "readable": True},
+            {"extension": ".pdf", "size": 200, "supported": True, "readable": True},
+            {"extension": ".bin", "size": 50, "supported": False, "readable": True},
+        ]
+        summary = _probe.summarize(entries)
+        assert summary["total_files"] == 3
+        assert summary["total_bytes"] == 350
+        assert summary["supported_files"] == 2
+        assert summary["supported_bytes"] == 300
+        assert summary["by_extension"][".pdf"]["count"] == 2
+        assert summary["by_extension"][".pdf"]["bytes"] == 300
+        assert summary["by_extension"][".bin"]["count"] == 1
+
+    def test_picks_up_truncation_sentinel(self):
+        entries = [
+            {"extension": ".pdf", "size": 10, "supported": True, "readable": True},
+            {"_truncated": True, "limit": 1},
+        ]
+        summary = _probe.summarize(entries)
+        assert summary["truncated"] is True
+        assert summary["truncated_limit"] == 1
+        # Total still reflects only the real entries.
+        assert summary["total_files"] == 1
+
+    def test_counts_unreadable(self):
+        entries = [
+            {"extension": ".pdf", "size": 0, "supported": True, "readable": False},
+            {"extension": ".pdf", "size": 10, "supported": True, "readable": True},
+        ]
+        summary = _probe.summarize(entries)
+        assert summary["unreadable"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Rendering
+# ---------------------------------------------------------------------------
+
+
+class TestRendering:
+    def test_render_table_includes_summary_and_paths(self, sample_tree):
+        entries = [
+            e for e in _probe.scan_directory(sample_tree) if not e.get("_truncated")
+        ]
+        summary = _probe.summarize(entries)
+        out = _probe.render_table(entries, summary)
+        assert "summary:" in out
+        assert "total files" in out
+        # At least one of our top-level files should appear by name.
+        assert "a.pdf" in out
+
+    def test_render_json_round_trips(self, sample_tree):
+        entries = [
+            e for e in _probe.scan_directory(sample_tree) if not e.get("_truncated")
+        ]
+        summary = _probe.summarize(entries)
+        out = _probe.render_json(entries, summary)
+        decoded = json.loads(out)
+        assert "files" in decoded and "summary" in decoded
+        assert decoded["summary"]["total_files"] == len(entries)
+
+    def test_render_table_handles_empty_match(self):
+        out = _probe.render_table([], _probe.summarize([]))
+        assert "no files matched" in out
+
+
+# ---------------------------------------------------------------------------
+# End-to-end: `llamaparse probe ...` through _core.main
+# ---------------------------------------------------------------------------
+
+
+class TestProbeCommand:
+    def test_probe_in_subcommands_tuple(self):
+        assert "probe" in _core.SUBCOMMANDS
+
+    def test_probe_appears_in_help(self, capsys):
+        with pytest.raises(SystemExit) as exc_info:
+            _core.main(["--help"])
+        assert exc_info.value.code == 0
+        out = capsys.readouterr().out
+        assert "probe" in out
+
+    def test_probe_basic_run(self, capsys, sample_tree):
+        rc = _core.main(["probe", str(sample_tree)])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "summary:" in out
+        assert "a.pdf" in out
+
+    def test_probe_json_run(self, capsys, sample_tree):
+        rc = _core.main(["probe", str(sample_tree), "--json"])
+        assert rc == 0
+        out = capsys.readouterr().out
+        decoded = json.loads(out)
+        assert decoded["summary"]["total_files"] >= 1
+        names = {f["name"] for f in decoded["files"]}
+        assert "a.pdf" in names
+
+    def test_probe_ext_filter_run(self, capsys, sample_tree):
+        rc = _core.main(["probe", str(sample_tree), "--ext", "pdf", "--json"])
+        assert rc == 0
+        decoded = json.loads(capsys.readouterr().out)
+        for entry in decoded["files"]:
+            assert entry["extension"] == ".pdf"
+
+    def test_probe_missing_target_exits_nonzero(self, capsys, tmp_path: Path):
+        with pytest.raises(SystemExit) as exc_info:
+            _core.main(["probe", str(tmp_path / "nope")])
+        # err() exits with code 2 by default.
+        assert exc_info.value.code == 2
+
+    def test_probe_writes_output_file(self, tmp_path: Path, sample_tree, capsys):
+        out_file = tmp_path / "report.txt"
+        rc = _core.main(
+            ["probe", str(sample_tree), "--output", str(out_file)]
+        )
+        assert rc == 0
+        assert out_file.exists()
+        content = out_file.read_text(encoding="utf-8")
+        assert "summary:" in content

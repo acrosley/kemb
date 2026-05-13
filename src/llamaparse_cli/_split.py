@@ -19,10 +19,12 @@ from ._common import (
     API_HOST,
     auth_headers,
     coerce_json_arg,
+    describe_input,
     err,
     import_requests,
     load_sdk_client,
     poll_job,
+    render_dry_run,
     surface_api_error,
     upload_file_rest,
     upload_file_sdk,
@@ -236,6 +238,9 @@ def add_subparser(subparsers):
                    help="If llama-cloud isn't importable, try `pip install` it.")
     p.add_argument("--stdout", action="store_true",
                    help="Also write the result to stdout.")
+    p.add_argument("--dry-run", action="store_true",
+                   help="Validate inputs and print the resolved plan without "
+                        "uploading the document or starting a job (zero credits).")
     p.set_defaults(func=run)
     return p
 
@@ -259,6 +264,31 @@ def run(args):
     )
 
     out_path = args.output or args.input.with_suffix(".split.json")
+
+    if args.dry_run:
+        transport = "REST (forced)" if args.rest else "SDK (REST fallback)"
+        if args.configuration_id:
+            resolved_cfg = None
+            category_names = None
+        else:
+            resolved_cfg = _build_configuration(
+                categories, configuration, args.splitting_strategy
+            )
+            category_names = (
+                [c.get("name") for c in resolved_cfg.get("categories", [])]
+                if resolved_cfg.get("categories") else None
+            )
+        print(render_dry_run("split", {
+            "input": describe_input(args.input),
+            "output": out_path,
+            "categories": category_names,
+            "splitting-strategy": args.splitting_strategy,
+            "configuration-id": args.configuration_id,
+            "configuration": resolved_cfg,
+            "project-id": args.project_id,
+            "transport": transport,
+        }))
+        return 0
 
     if args.rest:
         text = split_with_rest(

@@ -12,6 +12,7 @@ from ._parse import parse_with_sdk, parse_with_rest, strip_noise
 from ._extract import extract_with_sdk, extract_with_rest
 from ._classify import classify_with_sdk, classify_with_rest
 from ._split import split_with_sdk, split_with_rest
+from ._probe import scan_directory, summarize
 
 __all__ = [
     "__version__",
@@ -25,4 +26,6 @@ __all__ = [
     "classify_with_rest",
     "split_with_sdk",
     "split_with_rest",
+    "scan_directory",
+    "summarize",
 ]

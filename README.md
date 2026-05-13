@@ -100,6 +100,7 @@ llamaparse parse     --help
 llamaparse extract   --help
 llamaparse classify  --help
 llamaparse split     --help
+llamaparse probe     --help                    # scan a directory (zero credits)
 llamaparse doctor                              # preflight checks (zero credits)
 ```
 
@@ -158,6 +159,37 @@ llamaparse split ./report.pdf --splitting-strategy semantic
 
 LlamaSplit is currently a **v1 beta** endpoint — its response shape may
 evolve. Output defaults to `<input>.split.json`.
+
+### probe — recursively inventory a directory (zero credits)
+
+```bash
+llamaparse probe ./inbox                              # human-readable table
+llamaparse probe ./inbox --ext pdf,docx               # filter by extension
+llamaparse probe ./inbox --max-depth 2                # cap recursion depth
+llamaparse probe ./inbox --supported-only             # only LlamaCloud-friendly files
+llamaparse probe ./inbox --json > inventory.json      # machine-readable
+```
+
+`probe` walks the target directory recursively and reports per-file size,
+mtime, extension, mime type, and whether LlamaCloud is likely to accept the
+format. It never makes a network call — use it to preview a batch before
+running `parse` / `extract` / `classify` / `split` over a directory. Hidden
+files and directories are skipped unless `--include-hidden` is passed.
+
+### --dry-run — preview a job without spending credits
+
+```bash
+llamaparse parse    ./contract.pdf --dry-run
+llamaparse extract  ./invoice.pdf  --schema @invoice.json --dry-run
+llamaparse classify ./doc.pdf      --rules @rules.json   --dry-run
+llamaparse split    ./report.pdf   --categories @cats.json --dry-run
+```
+
+Adds a `--dry-run` mode to every job subcommand. It validates the inputs
+(file exists, schema/rules/categories parse, mutually-exclusive flags
+aren't combined), resolves the output path, and prints the configuration
+that *would* be sent — without uploading the document or starting a job.
+Pair it with `probe` to scope a batch run before any credits are spent.
 
 ## Real examples
 
@@ -304,7 +336,9 @@ llamaparse-plugin/
 │   ├── _parse.py                   — LlamaParse v2
 │   ├── _extract.py                 — LlamaExtract v2
 │   ├── _classify.py                — LlamaClassify v2
-│   └── _split.py                   — LlamaSplit v1 beta
+│   ├── _split.py                   — LlamaSplit v1 beta
+│   ├── _probe.py                   — recursive directory metadata scan (local-only)
+│   └── _doctor.py                  — preflight checks (local-only)
 ├── skills/
 │   ├── llamaparse/                 — parse → markdown/text
 │   │   ├── SKILL.md

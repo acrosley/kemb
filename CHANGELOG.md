@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `probe` subcommand: recursively walks a target directory and reports
+  per-file metadata (path, size, mtime, extension, mime type, whether the
+  format is LlamaCloud-friendly) with a summary block at the end. Supports
+  `--ext`, `--max-depth`, `--max-files`, `--include-hidden`,
+  `--supported-only`, `--follow-symlinks`, `--json`, and `--output`. Spends
+  zero credits — useful for previewing batch jobs before paying for them.
+- `--dry-run` flag on `parse`, `extract`, `classify`, and `split`. Validates
+  inputs (file exists, schema/rules/categories parse, mutually-exclusive
+  flags aren't combined), resolves the output path, and prints the
+  configuration that would be sent without uploading the document or
+  starting a job. Pairs with `probe` for safe batch planning.
 - `doctor` subcommand: preflight checks for Python version, package version,
   `requests` and `llama-cloud` availability, `LLAMA_CLOUD_API_KEY` presence
   (masked when printed), and a non-billable HEAD probe against

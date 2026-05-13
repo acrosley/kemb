@@ -16,10 +16,12 @@ from ._common import (
     DEFAULT_VERSION,
     PARSE_TIERS,
     auth_headers,
+    describe_input,
     err,
     import_requests,
     load_sdk_client,
     poll_job,
+    render_dry_run,
     surface_api_error,
     write_output,
 )
@@ -226,6 +228,9 @@ def add_subparser(subparsers):
                    help="If llama-cloud isn't importable, try `pip install` it.")
     p.add_argument("--stdout", action="store_true",
                    help="Also write the result to stdout.")
+    p.add_argument("--dry-run", action="store_true",
+                   help="Validate inputs and print the resolved plan without "
+                        "uploading the document or starting a job (zero credits).")
     p.set_defaults(func=run)
     return p
 
@@ -236,6 +241,19 @@ def run(args):
 
     ext = ".md" if args.result_type == "markdown" else ".txt"
     out_path = args.output or args.input.with_suffix(ext)
+
+    if args.dry_run:
+        transport = "REST (forced)" if args.rest else "SDK (REST fallback)"
+        print(render_dry_run("parse", {
+            "input": describe_input(args.input),
+            "output": out_path,
+            "result-type": args.result_type,
+            "tier": args.tier,
+            "version": args.version,
+            "transport": transport,
+            "strip-noise": args.strip_noise,
+        }))
+        return 0
 
     if args.rest:
         text = parse_with_rest(
