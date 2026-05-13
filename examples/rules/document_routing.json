@@ -1,0 +1,22 @@
+[
+  {
+    "type": "contract",
+    "description": "A legally binding agreement between two or more parties — sales agreements, NDAs, MSAs, SOWs, employment agreements, leases. Typically contains defined terms, signature blocks, effective dates, governing-law clauses, and numbered sections or articles."
+  },
+  {
+    "type": "invoice",
+    "description": "A bill from a vendor requesting payment for goods or services already delivered or to be delivered. Contains an invoice number, issue date, vendor name, billed line items with quantities and prices, subtotal, tax, and a total amount due."
+  },
+  {
+    "type": "receipt",
+    "description": "Proof of a completed transaction — what was paid, when, and how. Contains a transaction date, merchant name, itemized purchases, total paid, and a payment method (card last-four, cash, etc.). Receipts confirm payment; invoices request it."
+  },
+  {
+    "type": "correspondence",
+    "description": "A letter, email, memo, or other written communication exchanged between parties. Has a sender, recipient, date, and a narrative body — no structured tables of line items, no signature-block contractual language. Includes cover letters and demand letters."
+  },
+  {
+    "type": "other",
+    "description": "Anything that does not fit the above categories — reports, articles, forms, marketing materials, manuals, presentations, transcripts. Use this label when no other rule is a confident match."
+  }
+]
