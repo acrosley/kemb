@@ -282,9 +282,11 @@ extract / classify / split each have a single per-page rate.
 | `agentic`        | ~15 cr/page       | Tables, multi-column, mixed media              |
 | `agentic_plus`   | ~30+ cr/page      | Dense tables, charts, the hardest documents    |
 
-All four parse tiers return markdown in v2 (the v1 "fast = text-only"
-restriction is gone). Verify current pricing at <https://cloud.llamaindex.ai>
-before committing to large batches.
+`fast` returns plain text only; the other three tiers also expose a
+structured markdown expansion. The CLI handles this transparently — pass
+`--tier fast` and you'll get text saved to your chosen output path (with a
+one-line note if you asked for markdown). Verify current pricing at
+<https://cloud.llamaindex.ai> before committing to large batches.
 
 **Classify** offers two `--mode` settings: `fast` (text-only, cheap) and
 `multimodal` (reads images and layout — better for scans).

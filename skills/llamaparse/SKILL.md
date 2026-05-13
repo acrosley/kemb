@@ -29,7 +29,7 @@ If outbound HTTPS to `api.cloud.llamaindex.ai` is blocked (e.g. Cowork sandbox w
 
 ## Cost model
 
-LlamaParse charges credits per page, multiplied by a tier coefficient. v2 supports markdown output on every tier:
+LlamaParse charges credits per page, multiplied by a tier coefficient. `fast` returns plain text only; the higher three tiers also expose a structured markdown expansion:
 
 | Tier             | Multiplier (approx — verify on llamaindex.ai) | Best for                                       |
 |------------------|-----------------------------------------------|------------------------------------------------|

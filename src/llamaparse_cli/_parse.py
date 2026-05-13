@@ -234,24 +234,36 @@ def run(args):
     if not args.input.exists():
         err(f"input file not found: {args.input}")
 
+    # FAST tier physically only produces text — markdown expansion is
+    # rejected upstream. Quietly fetch text instead and write it to the
+    # user's chosen output path (plain text is valid markdown).
+    fetch_type = args.result_type
+    if args.tier == "fast" and args.result_type == "markdown":
+        print(
+            "note: FAST tier returns plain text; saving as markdown. "
+            "Use --tier cost_effective or higher for structured markdown.",
+            file=sys.stderr,
+        )
+        fetch_type = "text"
+
     ext = ".md" if args.result_type == "markdown" else ".txt"
     out_path = args.output or args.input.with_suffix(ext)
 
     if args.rest:
         text = parse_with_rest(
-            args.input, args.result_type, args.tier, args.version,
+            args.input, fetch_type, args.tier, args.version,
             args.poll_timeout,
         )
     else:
         try:
             text = parse_with_sdk(
-                args.input, args.result_type, args.tier, args.version,
+                args.input, fetch_type, args.tier, args.version,
                 args.auto_install,
             )
         except ImportError as e:
             print(f"note: {e}\nfalling back to REST.", file=sys.stderr)
             text = parse_with_rest(
-                args.input, args.result_type, args.tier, args.version,
+                args.input, fetch_type, args.tier, args.version,
                 args.poll_timeout,
             )
 

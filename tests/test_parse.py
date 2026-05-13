@@ -179,3 +179,92 @@ class TestExtractRestField:
         """An empty `<key>_full` should NOT be returned as the result."""
         payload = {"markdown_full": ""}
         assert _parse._extract_rest_field(payload, "markdown") is None
+
+
+# ---------------------------------------------------------------------------
+# run() — FAST tier compatibility
+# ---------------------------------------------------------------------------
+
+
+class TestRunFastTier:
+    """FAST tier can't expand markdown; the CLI should transparently fetch text."""
+
+    def _make_args(self, tmp_path, **overrides):
+        import argparse
+
+        input_file = tmp_path / "doc.pdf"
+        input_file.write_bytes(b"%PDF-1.4 stub")
+        defaults = dict(
+            input=input_file,
+            output=None,
+            result_type="markdown",
+            tier="fast",
+            version="latest",
+            strip_noise=False,
+            rest=True,  # avoid SDK import path
+            poll_timeout=600.0,
+            auto_install=False,
+            stdout=False,
+        )
+        defaults.update(overrides)
+        return argparse.Namespace(**defaults)
+
+    def test_fast_with_markdown_default_fetches_text(self, tmp_path, monkeypatch, capsys):
+        """FAST + default markdown should auto-fallback to text and warn."""
+        captured_calls = {}
+
+        def fake_rest(input_path, result_type, tier, version, poll_timeout):
+            captured_calls["result_type"] = result_type
+            captured_calls["tier"] = tier
+            return "extracted plain text"
+
+        monkeypatch.setattr(_parse, "parse_with_rest", fake_rest)
+
+        args = self._make_args(tmp_path)
+        rc = _parse.run(args)
+
+        assert rc == 0
+        # The fetcher must be called with text, not markdown.
+        assert captured_calls["result_type"] == "text"
+        assert captured_calls["tier"] == "fast"
+        # Output extension still respects the user's intent (markdown → .md).
+        assert (tmp_path / "doc.md").read_text(encoding="utf-8") == "extracted plain text"
+        # Note explaining the fallback should be on stderr.
+        assert "FAST tier" in capsys.readouterr().err
+
+    def test_fast_with_explicit_text_unchanged(self, tmp_path, monkeypatch, capsys):
+        """FAST + explicit text should pass through with no warning."""
+        captured_calls = {}
+
+        def fake_rest(input_path, result_type, tier, version, poll_timeout):
+            captured_calls["result_type"] = result_type
+            return "plain"
+
+        monkeypatch.setattr(_parse, "parse_with_rest", fake_rest)
+
+        args = self._make_args(tmp_path, result_type="text")
+        rc = _parse.run(args)
+
+        assert rc == 0
+        assert captured_calls["result_type"] == "text"
+        assert (tmp_path / "doc.txt").read_text(encoding="utf-8") == "plain"
+        assert "FAST tier" not in capsys.readouterr().err
+
+    def test_higher_tier_with_markdown_unchanged(self, tmp_path, monkeypatch, capsys):
+        """Non-FAST tiers must still request markdown when asked."""
+        captured_calls = {}
+
+        def fake_rest(input_path, result_type, tier, version, poll_timeout):
+            captured_calls["result_type"] = result_type
+            captured_calls["tier"] = tier
+            return "# Heading"
+
+        monkeypatch.setattr(_parse, "parse_with_rest", fake_rest)
+
+        args = self._make_args(tmp_path, tier="cost_effective")
+        rc = _parse.run(args)
+
+        assert rc == 0
+        assert captured_calls["result_type"] == "markdown"
+        assert captured_calls["tier"] == "cost_effective"
+        assert "FAST tier" not in capsys.readouterr().err
