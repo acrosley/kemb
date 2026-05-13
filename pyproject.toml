@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llamaparse-cli"
+version = "0.4.0"
+description = "Tiny CLI wrapper around LlamaParse API v2. Parses PDFs, Office docs, scans, and images to markdown or text."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+authors = [
+    { name = "Andrew Crosley", email = "crosleya1394@gmail.com" }
+]
+keywords = [
+    "llamaparse",
+    "llamacloud",
+    "pdf",
+    "ocr",
+    "document-parsing",
+    "markdown",
+    "extraction",
+]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Operating System :: OS Independent",
+    "Topic :: Text Processing",
+]
+dependencies = [
+    "llama-cloud>=2.0.0",
+    "requests>=2.28",
+]
+
+[project.urls]
+Homepage = "https://github.com/acrosley/llamaparse-plugin"
+Repository = "https://github.com/acrosley/llamaparse-plugin"
+
+[project.scripts]
+llamaparse = "llamaparse_cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]

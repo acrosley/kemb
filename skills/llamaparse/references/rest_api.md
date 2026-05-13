@@ -83,16 +83,18 @@ The expanded fields come back as objects with a `pages` array, each page carryin
 
 ```json
 {
-  "id": "abc123-...",
-  "status": "COMPLETED",
+  "job": { "id": "abc123-...", "status": "COMPLETED" },
   "markdown": {
     "pages": [
-      { "page": 1, "markdown": "# Title\n..." },
-      { "page": 2, "markdown": "..." }
+      { "page_number": 1, "markdown": "# Title\n...", "success": true },
+      { "page_number": 2, "markdown": "...", "success": true }
     ]
-  }
+  },
+  "markdown_full": "# Title\n..."
 }
 ```
+
+Status lives at `.job.status` in the v2 response — not at the top level (the upload response returns `id` at top level, but the status response nests it under `job`).
 
 Status transitions: `PENDING` → `RUNNING` → `COMPLETED` (or `FAILED`).
 
@@ -130,7 +132,7 @@ JOB=$(curl -s -X POST https://api.cloud.llamaindex.ai/api/v2/parse/upload \
 # 2. Poll until COMPLETED.
 while :; do
   STATUS=$(curl -s -H "Authorization: Bearer $LLAMA_CLOUD_API_KEY" \
-    "https://api.cloud.llamaindex.ai/api/v2/parse/$JOB" | jq -r .status)
+    "https://api.cloud.llamaindex.ai/api/v2/parse/$JOB" | jq -r '.job.status // .status')
   echo "status: $STATUS"
   [ "$STATUS" = "COMPLETED" ] && break
   [ "$STATUS" = "FAILED" -o "$STATUS" = "CANCELLED" ] && exit 1
