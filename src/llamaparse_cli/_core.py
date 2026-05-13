@@ -18,8 +18,14 @@ from __future__ import annotations
 
 import argparse
 import sys
+from importlib.metadata import PackageNotFoundError, version as _pkg_version
 
 from . import _classify, _doctor, _extract, _parse, _split
+
+try:
+    __version__ = _pkg_version("llamaparse-cli")
+except PackageNotFoundError:
+    __version__ = "0.0.0+unknown"
 
 SUBCOMMANDS = ("parse", "extract", "classify", "split", "doctor")
 
@@ -43,6 +49,11 @@ def build_parser() -> argparse.ArgumentParser:
             "subcommand) is treated as `llamaparse parse <file> ...`.\n"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument(
+        "-V", "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
     subparsers = p.add_subparsers(dest="command", metavar="<command>")
     _parse.add_subparser(subparsers)

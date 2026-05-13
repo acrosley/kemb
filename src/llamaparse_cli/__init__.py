@@ -7,13 +7,14 @@ the others.
 """
 from __future__ import annotations
 
-from ._core import main
+from ._core import __version__, main
 from ._parse import parse_with_sdk, parse_with_rest, strip_noise
 from ._extract import extract_with_sdk, extract_with_rest
 from ._classify import classify_with_sdk, classify_with_rest
 from ._split import split_with_sdk, split_with_rest
 
 __all__ = [
+    "__version__",
     "main",
     "parse_with_sdk",
     "parse_with_rest",

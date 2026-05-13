@@ -93,3 +93,17 @@ class TestMainHelp:
         assert rc == 2
         captured = capsys.readouterr()
         assert "usage" in captured.err.lower()
+
+
+class TestVersionFlag:
+    """``llamaparse --version`` / ``-V`` should print the package version and exit 0."""
+
+    @pytest.mark.parametrize("flag", ["--version", "-V"])
+    def test_version_flag_prints_and_exits_cleanly(self, flag, capsys):
+        with pytest.raises(SystemExit) as exc_info:
+            _core.main([flag])
+        assert exc_info.value.code == 0
+        captured = capsys.readouterr()
+        # argparse's version action writes "<prog> <version>" to stdout
+        assert captured.out.startswith("llamaparse ")
+        assert _core.__version__ in captured.out
