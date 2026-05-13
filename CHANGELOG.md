@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `doctor` subcommand: preflight checks for Python version, package version,
+  `requests` and `llama-cloud` availability, `LLAMA_CLOUD_API_KEY` presence
+  (masked when printed), and a non-billable HEAD probe against
+  `api.cloud.llamaindex.ai` to confirm the key authenticates. Spends zero
+  credits — never uploads a document or starts a job. Use `--offline` to
+  skip the network probe.
+
 ## [0.5.0] - 2026-05-13
 
 ### Added

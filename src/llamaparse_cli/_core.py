@@ -6,6 +6,7 @@ Subcommands:
     extract   — pull structured JSON out of a document against a schema
     classify  — categorize a document into one of a defined set of classes
     split     — break a document into sections (by category or strategy)
+    doctor    — preflight checks (Python, deps, API key, reachability)
 
 Backward compatible: `llamaparse ./file.pdf [--tier ...]` (no subcommand) still
 works and is dispatched as `parse`.
@@ -18,9 +19,9 @@ from __future__ import annotations
 import argparse
 import sys
 
-from . import _classify, _extract, _parse, _split
+from . import _classify, _doctor, _extract, _parse, _split
 
-SUBCOMMANDS = ("parse", "extract", "classify", "split")
+SUBCOMMANDS = ("parse", "extract", "classify", "split", "doctor")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -36,6 +37,7 @@ def build_parser() -> argparse.ArgumentParser:
             "  llamaparse extract ./invoice.pdf --schema @invoice_schema.json\n"
             "  llamaparse classify ./doc.pdf --rules @rules.json\n"
             "  llamaparse split ./report.pdf --categories @cats.json\n"
+            "  llamaparse doctor                                  # preflight checks\n"
             "\n"
             "For backward compatibility, `llamaparse <file> ...` (no\n"
             "subcommand) is treated as `llamaparse parse <file> ...`.\n"
@@ -47,6 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
     _extract.add_subparser(subparsers)
     _classify.add_subparser(subparsers)
     _split.add_subparser(subparsers)
+    _doctor.add_subparser(subparsers)
     return p
 
 

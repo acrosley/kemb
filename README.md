@@ -100,7 +100,13 @@ llamaparse parse     --help
 llamaparse extract   --help
 llamaparse classify  --help
 llamaparse split     --help
+llamaparse doctor                              # preflight checks (zero credits)
 ```
+
+After install, run `llamaparse doctor` to confirm your Python, deps, and
+`LLAMA_CLOUD_API_KEY` are all set up — it makes one non-billable auth probe
+against LlamaCloud and never starts a job. Add `--offline` to skip the
+network check.
 
 `llama-cloud` and `requests` install automatically as dependencies.
 
