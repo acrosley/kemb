@@ -78,7 +78,7 @@ from llama_cloud import LlamaCloud
 client = LlamaCloud()
 
 with open("./doc.pdf", "rb") as fh:
-    f = client.files.create(upload_file=fh)
+    f = client.files.create(file=fh, purpose="classify")
 
 job = client.classify.create(
     file_input=f.id,

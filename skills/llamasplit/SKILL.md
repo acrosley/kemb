@@ -85,7 +85,7 @@ from llama_cloud import LlamaCloud
 client = LlamaCloud()
 
 with open("./report.pdf", "rb") as fh:
-    f = client.files.create(upload_file=fh)
+    f = client.files.create(file=fh, purpose="split")
 
 # Convenience wrapper: creates + polls + returns the final result.
 result = client.beta.split.split(

@@ -40,7 +40,7 @@ def extract_with_sdk(input_path, schema, configuration, configuration_id,
             "`pip install llama-cloud` (or pass --auto-install to retry)."
         )
 
-    file_id = upload_file_sdk(client, input_path)
+    file_id = upload_file_sdk(client, input_path, purpose="extract")
     config = _build_configuration(schema, configuration, configuration_id)
 
     kwargs = {"file_input": file_id}
@@ -64,7 +64,7 @@ def extract_with_rest(input_path, schema, configuration, configuration_id,
     requests = import_requests()
     headers = {**auth_headers(), "Content-Type": "application/json"}
 
-    file_id = upload_file_rest(input_path)
+    file_id = upload_file_rest(input_path, purpose="extract")
     body = {"file_input": file_id}
     if configuration_id:
         body["configuration_id"] = configuration_id
@@ -103,22 +103,30 @@ def _build_configuration(schema, configuration, configuration_id) -> dict:
 
 
 def _extract_data(payload):
-    """Return the extracted data as a JSON string, regardless of envelope shape."""
+    """Return the extracted data as a JSON string, regardless of envelope shape.
+
+    The SDK's `ExtractV2Job` exposes the result under `.extract_result`; older
+    or REST-direct payloads may use `data` / `extract` / `result`. Try them
+    in priority order.
+    """
     data = None
-    for key in ("data", "extract", "extraction", "result", "results"):
+    for key in ("extract_result", "data", "extract", "extraction", "result", "results"):
         v = getattr(payload, key, None) if not isinstance(payload, dict) else payload.get(key)
         if v is not None:
             data = v
             break
     if data is None and isinstance(payload, dict):
         nested = payload.get("job") or {}
-        for key in ("data", "extract", "result"):
+        for key in ("extract_result", "data", "extract", "result"):
             if key in nested:
                 data = nested[key]
                 break
     if data is None:
-        keys = list(payload.keys()) if isinstance(payload, dict) else dir(payload)
-        err(f"could not locate extracted data. Top-level keys: {keys[:20]}", code=3)
+        if isinstance(payload, dict):
+            keys = list(payload.keys())
+        else:
+            keys = [a for a in dir(payload) if not a.startswith("_")]
+        err(f"could not locate extracted data. Visible fields: {keys[:20]}", code=3)
     if hasattr(data, "model_dump"):
         data = data.model_dump()
     elif hasattr(data, "dict"):
@@ -179,6 +187,12 @@ def run(args):
         err(f"input file not found: {args.input}")
     if args.configuration and args.configuration_id:
         err("--configuration and --configuration-id are mutually exclusive.")
+    if not args.schema and not args.configuration and not args.configuration_id:
+        err(
+            "extract requires a data schema. Pass --schema @path/to/schema.json, "
+            "--configuration with `data_schema` embedded, or --configuration-id "
+            "to reference a saved configuration."
+        )
 
     schema = coerce_json_arg(args.schema, "--schema") if args.schema else None
     configuration = (

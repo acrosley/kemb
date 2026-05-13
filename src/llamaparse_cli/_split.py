@@ -46,7 +46,7 @@ def split_with_sdk(input_path, categories, configuration, configuration_id,
             "with `pip install -U llama-cloud` or use --rest."
         )
 
-    file_id = upload_file_sdk(client, input_path)
+    file_id = upload_file_sdk(client, input_path, purpose="split")
     document_input = {"file_id": file_id}
 
     kwargs = {"document_input": document_input}
@@ -60,8 +60,11 @@ def split_with_sdk(input_path, categories, configuration, configuration_id,
         kwargs["project_id"] = project_id
 
     try:
-        # Use the convenience wrapper when available (creates + polls).
-        if hasattr(client.beta.split, "split") and not configuration_id:
+        # The convenience wrapper combines create + poll, but only when we're
+        # supplying an inline configuration (it builds one internally from
+        # `categories` + `splitting_strategy`). When using a saved
+        # configuration id, drop down to the explicit create + wait flow.
+        if not configuration_id:
             cfg = kwargs.pop("configuration", {})
             final = client.beta.split.split(
                 document_input=document_input,
@@ -90,7 +93,7 @@ def split_with_rest(input_path, categories, configuration, configuration_id,
     requests = import_requests()
     headers = {**auth_headers(), "Content-Type": "application/json"}
 
-    file_id = upload_file_rest(input_path)
+    file_id = upload_file_rest(input_path, purpose="split")
     body = {"document_input": {"file_id": file_id}}
     if configuration_id:
         body["configuration_id"] = configuration_id
@@ -242,6 +245,12 @@ def run(args):
         err(f"input file not found: {args.input}")
     if args.configuration and args.configuration_id:
         err("--configuration and --configuration-id are mutually exclusive.")
+    if not args.categories and not args.configuration and not args.configuration_id:
+        err(
+            "split requires categories. Pass --categories @path/to/cats.json "
+            "(a JSON list of {name, description} entries), --configuration with "
+            "`categories` embedded, or --configuration-id."
+        )
 
     categories = _normalize_categories(args.categories) if args.categories else None
     configuration = (

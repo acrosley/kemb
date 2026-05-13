@@ -10,14 +10,14 @@ import os
 import subprocess
 import sys
 import time
-from typing import Any, Callable, Optional
+from typing import Any, Callable, NoReturn, Optional
 
 API_HOST = "https://api.cloud.llamaindex.ai"
 DEFAULT_VERSION = "latest"
 PARSE_TIERS = ("fast", "cost_effective", "agentic", "agentic_plus")
 
 
-def err(msg: str, code: int = 2) -> None:
+def err(msg: str, code: int = 2) -> NoReturn:
     print(f"error: {msg}", file=sys.stderr)
     sys.exit(code)
 
@@ -133,21 +133,25 @@ def poll_job(
         backoff = min(backoff * 1.5, 5.0)
 
 
-def upload_file_rest(file_path) -> str:
+def upload_file_rest(file_path, purpose: str = "user_data") -> str:
     """Upload a file via REST and return its `file_id`.
 
     Extract / classify / split all consume an already-uploaded file id rather
     than the raw bytes (parse is the exception — it accepts a multipart upload
-    in one shot). Endpoint: POST /api/v1/files.
+    in one shot). Endpoint: POST /api/v1/beta/files. `purpose` indicates how
+    the file will be used (`user_data`, `parse`, `extract`, `classify`,
+    `split`, `sheet`, or `agent_app`).
     """
     requests = import_requests()
     headers = auth_headers()
     with open(file_path, "rb") as fh:
-        files = {"upload_file": (file_path.name, fh)}
+        files = {"file": (file_path.name, fh)}
+        data = {"purpose": purpose}
         resp = requests.post(
-            f"{API_HOST}/api/v1/files",
+            f"{API_HOST}/api/v1/beta/files",
             headers=headers,
             files=files,
+            data=data,
             timeout=300,
         )
     if resp.status_code >= 400:
@@ -159,11 +163,11 @@ def upload_file_rest(file_path) -> str:
     return file_id
 
 
-def upload_file_sdk(client, file_path) -> str:
+def upload_file_sdk(client, file_path, purpose: str = "user_data") -> str:
     """Upload a file via the SDK and return its `file_id`."""
     try:
         with open(file_path, "rb") as fh:
-            result = client.files.create(upload_file=fh)
+            result = client.files.create(file=fh, purpose=purpose)
     except Exception as e:
         surface_api_error("file upload failed", e)
     file_id = getattr(result, "id", None)

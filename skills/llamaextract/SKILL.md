@@ -81,7 +81,7 @@ client = LlamaCloud()  # reads LLAMA_CLOUD_API_KEY
 
 # Upload the file first — extract takes a file id, not raw bytes.
 with open("./invoice.pdf", "rb") as fh:
-    f = client.files.create(upload_file=fh)
+    f = client.files.create(file=fh, purpose="extract")
 
 result = client.extract.run(
     file_input=f.id,

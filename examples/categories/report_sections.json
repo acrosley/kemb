@@ -1,0 +1,26 @@
+[
+  {
+    "name": "intro",
+    "description": "Opening material: title page, abstract, executive summary, table of contents, foreword, or introduction. Sets context and previews what the report covers."
+  },
+  {
+    "name": "methodology",
+    "description": "How the work was done — research design, data sources, sampling, instruments, analytical approach, limitations of method. Includes 'Methods', 'Approach', or 'Data and Methods' sections."
+  },
+  {
+    "name": "results",
+    "description": "What was found — empirical findings, measured outcomes, tables and figures presenting the data without interpretive commentary. Includes 'Findings' and 'Results' sections."
+  },
+  {
+    "name": "discussion",
+    "description": "Interpretation of the results — what they mean, how they compare to prior work, implications, recommendations, and conclusions. Includes 'Discussion', 'Analysis', 'Conclusions', and 'Recommendations' sections."
+  },
+  {
+    "name": "references",
+    "description": "Bibliography, works cited, or reference list — formatted citations to sources used in the report. Usually appears near the end and contains no body prose."
+  },
+  {
+    "name": "appendix",
+    "description": "Supplementary material attached after the references — raw data tables, survey instruments, supporting calculations, glossaries, supplementary figures. Labeled 'Appendix A', 'Annex', or 'Supplementary Material'."
+  }
+]

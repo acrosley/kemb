@@ -1,0 +1,95 @@
+"""Tests for the top-level argparse dispatcher in ``_core``."""
+from __future__ import annotations
+
+import pytest
+
+from llamaparse_cli import _core
+
+
+# ---------------------------------------------------------------------------
+# _normalize_argv
+# ---------------------------------------------------------------------------
+
+
+class TestNormalizeArgv:
+    def test_empty_argv_passes_through(self):
+        assert _core._normalize_argv([]) == []
+
+    @pytest.mark.parametrize("flag", ["-h", "--help"])
+    def test_help_flags_pass_through(self, flag):
+        assert _core._normalize_argv([flag]) == [flag]
+
+    @pytest.mark.parametrize("cmd", ["parse", "extract", "classify", "split"])
+    def test_explicit_subcommand_passes_through(self, cmd):
+        assert _core._normalize_argv([cmd, "./file.pdf"]) == [cmd, "./file.pdf"]
+
+    def test_legacy_positional_file_gets_parse_prefix(self):
+        """Bare `<file>` argv should be dispatched as `parse <file>`."""
+        assert _core._normalize_argv(["./contract.pdf"]) == ["parse", "./contract.pdf"]
+
+    def test_legacy_positional_with_flags(self):
+        argv = ["./contract.pdf", "--tier", "agentic"]
+        assert _core._normalize_argv(argv) == ["parse", "./contract.pdf", "--tier", "agentic"]
+
+    def test_leading_flag_is_left_alone(self):
+        """A leading `-x` shouldn't trick us into prepending `parse`."""
+        assert _core._normalize_argv(["--version"]) == ["--version"]
+
+
+# ---------------------------------------------------------------------------
+# build_parser
+# ---------------------------------------------------------------------------
+
+
+class TestBuildParser:
+    def test_returns_argument_parser(self):
+        import argparse
+
+        parser = _core.build_parser()
+        assert isinstance(parser, argparse.ArgumentParser)
+        assert parser.prog == "llamaparse"
+
+    def test_all_subcommands_registered(self):
+        """parse / extract / classify / split must all be selectable subcommands."""
+        parser = _core.build_parser()
+
+        choices = None
+        for action in parser._actions:
+            if getattr(action, "choices", None) and "parse" in action.choices:
+                choices = action.choices
+                break
+
+        assert choices is not None, "no subparser action found"
+        for cmd in ("parse", "extract", "classify", "split"):
+            assert cmd in choices, f"{cmd!r} subparser missing"
+
+
+# ---------------------------------------------------------------------------
+# main()
+# ---------------------------------------------------------------------------
+
+
+class TestMainHelp:
+    """``llamaparse <cmd> --help`` should exit with code 0 for every subcommand."""
+
+    @pytest.mark.parametrize("cmd", ["parse", "extract", "classify", "split"])
+    def test_subcommand_help_exits_cleanly(self, cmd, capsys):
+        with pytest.raises(SystemExit) as exc_info:
+            _core.main([cmd, "--help"])
+        # argparse exits with 0 on --help
+        assert exc_info.value.code == 0
+        captured = capsys.readouterr()
+        # Help output should mention the subcommand or its argparse "usage:" prefix
+        assert "usage" in captured.out.lower()
+
+    def test_top_level_help_exits_cleanly(self):
+        with pytest.raises(SystemExit) as exc_info:
+            _core.main(["--help"])
+        assert exc_info.value.code == 0
+
+    def test_empty_argv_prints_help_and_returns_2(self, capsys):
+        """No args / no subcommand → print help to stderr and return 2."""
+        rc = _core.main([])
+        assert rc == 2
+        captured = capsys.readouterr()
+        assert "usage" in captured.err.lower()

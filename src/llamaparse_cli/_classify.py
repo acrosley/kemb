@@ -41,7 +41,7 @@ def classify_with_sdk(input_path, rules, configuration, configuration_id,
             "`pip install llama-cloud` (or pass --auto-install to retry)."
         )
 
-    file_id = upload_file_sdk(client, input_path)
+    file_id = upload_file_sdk(client, input_path, purpose="classify")
 
     kwargs = {"file_input": file_id}
     if configuration_id:
@@ -72,7 +72,7 @@ def classify_with_rest(input_path, rules, configuration, configuration_id,
     requests = import_requests()
     headers = {**auth_headers(), "Content-Type": "application/json"}
 
-    file_id = upload_file_rest(input_path)
+    file_id = upload_file_rest(input_path, purpose="classify")
     body = {"file_input": file_id}
     if configuration_id:
         body["configuration_id"] = configuration_id
@@ -109,29 +109,44 @@ def _build_configuration(rules, configuration, mode) -> dict:
 
 
 def _extract_result(payload):
-    """Pull the classification result out of the v2 response envelope."""
-    candidate = None
+    """Pull the classification result out of the v2 response envelope.
+
+    The SDK returns a ClassifyGetResponse with `.result` carrying
+    `{type, confidence, reasoning}`. REST responses may nest under
+    `.job.result` or expose those fields at the top level for direct
+    callers, so check `result` first, then the nested envelope, then a
+    top-level shape — but only when both `type` AND `confidence` are
+    present (avoids picking up unrelated payloads).
+    """
     for key in ("result", "classification", "classify"):
         v = getattr(payload, key, None) if not isinstance(payload, dict) else payload.get(key)
         if v is not None:
-            candidate = v
-            break
-    if candidate is None and isinstance(payload, dict):
-        if "type" in payload and "confidence" in payload:
-            candidate = payload
+            return _dump(v)
 
-    if candidate is None:
-        keys = list(payload.keys()) if isinstance(payload, dict) else dir(payload)
-        err(f"could not locate classify result. Top-level keys: {keys[:20]}", code=3)
+    if isinstance(payload, dict):
+        nested = payload.get("job") or {}
+        for key in ("result", "classification", "classify"):
+            if key in nested:
+                return _dump(nested[key])
+        if "type" in payload and "confidence" in payload and "reasoning" in payload:
+            return _dump(payload)
 
-    if hasattr(candidate, "model_dump"):
-        candidate = candidate.model_dump()
-    elif hasattr(candidate, "dict"):
+    if isinstance(payload, dict):
+        keys = list(payload.keys())
+    else:
+        keys = [a for a in dir(payload) if not a.startswith("_")]
+    err(f"could not locate classify result. Visible fields: {keys[:20]}", code=3)
+
+
+def _dump(obj) -> str:
+    if hasattr(obj, "model_dump"):
+        obj = obj.model_dump()
+    elif hasattr(obj, "dict"):
         try:
-            candidate = candidate.dict()
+            obj = obj.dict()
         except Exception:
             pass
-    return json.dumps(candidate, indent=2, default=str, ensure_ascii=False)
+    return json.dumps(obj, indent=2, default=str, ensure_ascii=False)
 
 
 def _normalize_rules(value):
@@ -208,6 +223,12 @@ def run(args):
         err(f"input file not found: {args.input}")
     if args.configuration and args.configuration_id:
         err("--configuration and --configuration-id are mutually exclusive.")
+    if not args.rules and not args.configuration and not args.configuration_id:
+        err(
+            "classify requires rules. Pass --rules @path/to/rules.json (a JSON "
+            "list of {type, description} entries), --configuration with `rules` "
+            "embedded, or --configuration-id."
+        )
 
     rules = _normalize_rules(args.rules) if args.rules else None
     configuration = (
