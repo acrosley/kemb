@@ -8,10 +8,7 @@
   },
   "license": "MIT",
   "homepage": "https://github.com/acrosley/llamaparse-plugin",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/acrosley/llamaparse-plugin.git"
-  },
+  "repository": "https://github.com/acrosley/llamaparse-plugin.git",
   "keywords": [
     "llamaparse",
     "llamaextract",

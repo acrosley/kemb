@@ -26,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   credits — never uploads a document or starts a job. Use `--offline` to
   skip the network probe.
 
+### Fixed
+- `repository` field in `.claude-plugin/plugin.json` is now a string URL
+  (matches Claude Code's plugin manifest schema). Previously it was an
+  npm-style `{ type, url }` object, which caused `/plugin install` to
+  fail with `repository: Invalid input: expected string, received object`.
+
 ## [0.5.0] - 2026-05-13
 
 ### Added

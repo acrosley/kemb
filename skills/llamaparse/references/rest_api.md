@@ -30,7 +30,7 @@ Minimal:
 }
 ```
 
-Tier values: `fast`, `cost_effective`, `agentic`, `agentic_plus`. v2 supports markdown output on every tier.
+Tier values: `fast`, `cost_effective`, `agentic`, `agentic_plus`. The `fast` tier returns plain text only — requesting `expand=markdown` against a `fast` job returns `400 BadRequestError: "Markdown expansion is not available for FAST tier jobs."` The other three tiers expose both `text` and `markdown` expansions.
 
 Version: `"latest"` for the most recent stable release, or a dated pin like `"2026-01-08"` for reproducible production runs.
 
@@ -74,7 +74,7 @@ By default, this endpoint returns only metadata (`id`, `status`, errors). Add `e
 
 `expand` values:
 - `text` — plain text
-- `markdown` — markdown (supported on all v2 tiers)
+- `markdown` — markdown (NOT available for `fast` tier; supported on `cost_effective`, `agentic`, `agentic_plus`)
 - `items` — structured per-page items (paragraphs, tables, etc.)
 - `images_content_metadata` — image references and metadata
 - `markdown_content_metadata`, `text_content_metadata` — per-format extraction metadata
