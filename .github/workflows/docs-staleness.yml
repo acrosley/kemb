@@ -1,0 +1,97 @@
+name: Docs staleness
+
+# Re-fetches every page in docs/llamacloud/_manifest.json and compares hashes.
+# Any drift (modified / gone / resurrected / added / removed) opens or updates
+# a tracking issue tagged `docs-drift`. Manual dispatch runs the same check.
+
+on:
+  schedule:
+    # Mondays 14:00 UTC — early enough in the week to act on drift before the weekend.
+    - cron: "0 14 * * 1"
+  workflow_dispatch:
+    inputs:
+      fail_on_drift:
+        description: "Fail the job (exit 1) when drift is detected"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run staleness check
+        id: check
+        # Capture exit code without aborting the step so we can post an issue.
+        run: |
+          set +e
+          python scripts/check_docs_staleness.py --json > drift.json
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          set -e
+          echo "--- drift summary ---"
+          jq -r '.summary' drift.json || cat drift.json
+
+      - name: Upload drift report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drift-report
+          path: drift.json
+
+      - name: Open or update tracking issue on drift
+        if: steps.check.outputs.exit_code != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          summary=$(jq -r '.summary' drift.json)
+          body=$(
+            printf '## LlamaCloud docs drift detected\n\n'
+            printf 'Workflow run: %s/%s/actions/runs/%s\n\n' \
+              "${GITHUB_SERVER_URL}" "${GITHUB_REPOSITORY}" "${GITHUB_RUN_ID}"
+            printf '**Summary:** `%s`\n\n' "$summary"
+            printf '<details><summary>Full report</summary>\n\n```json\n'
+            cat drift.json
+            printf '\n```\n</details>\n\n'
+            printf 'To refresh the mirror locally:\n\n```\npython scripts/fetch_docs.py\ngit add docs/llamacloud\ngit commit -m "Refresh LlamaCloud docs mirror"\n```\n'
+          )
+          existing=$(gh issue list --label docs-drift --state open --json number --jq '.[0].number' || true)
+          if [ -n "${existing}" ]; then
+            gh issue comment "${existing}" --body "${body}"
+            gh issue edit "${existing}" --add-label docs-drift
+          else
+            gh issue create \
+              --title "LlamaCloud docs drift detected (${summary})" \
+              --label docs-drift \
+              --body "${body}"
+          fi
+
+      - name: Close tracking issue when clean
+        if: steps.check.outputs.exit_code == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          for n in $(gh issue list --label docs-drift --state open --json number --jq '.[].number'); do
+            gh issue comment "$n" --body "Mirror is back in sync as of run ${GITHUB_RUN_ID}. Closing."
+            gh issue close "$n"
+          done
+
+      - name: Fail if drift and requested
+        if: steps.check.outputs.exit_code != '0' && github.event.inputs.fail_on_drift == 'true'
+        run: |
+          echo "Drift detected and fail_on_drift=true." >&2
+          exit 1
