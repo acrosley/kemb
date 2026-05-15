@@ -1,0 +1,42 @@
+# doc-backbone: doc-type -> extractor chain configuration.
+#
+# Each doc_type lists extractors in priority order. v0 only ships `native_pdf`,
+# so every type currently chains to it. Future tiers (ocr_tesseract, marker,
+# llamaparse_premium) plug in here without code changes to the spine.
+#
+# The classifier (L2) decides which doc_type a PDF gets; the registry (L3)
+# resolves the type to its chain. Until the classifier lands, everything is
+# "unknown".
+
+default_doc_type: unknown
+
+doc_types:
+  unknown:
+    extractors:
+      - native_pdf
+
+  medical_record:
+    extractors:
+      - native_pdf
+      # future: ocr_tesseract, marker, llamaparse_premium
+
+  expert_testimony:
+    extractors:
+      - native_pdf
+
+  cv:
+    extractors:
+      - native_pdf
+
+  fee_schedule:
+    extractors:
+      - native_pdf
+      # future: llamaparse_premium (table-aware)
+
+  exhibit:
+    extractors:
+      - native_pdf
+
+  designation:
+    extractors:
+      - native_pdf

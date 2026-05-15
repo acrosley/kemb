@@ -41,3 +41,10 @@ coverage.xml
 *.md.tmp
 scratch/
 out/
+
+# doc-backbone runtime artifacts (regenerable from PDFs)
+backbone/corpus.db
+backbone/corpus.db-wal
+backbone/corpus.db-shm
+backbone/cache/
+backbone/mirror/
