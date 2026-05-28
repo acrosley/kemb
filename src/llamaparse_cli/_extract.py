@@ -226,13 +226,12 @@ def run(args):
     if args.dry_run:
         transport = "REST (forced)" if args.rest else "SDK (REST fallback)"
         # Resolve the configuration that *would* have been sent, so users
-        # catch missing fields before paying for an upload.
-        try:
-            resolved_cfg = _build_configuration(
-                schema, configuration, args.configuration_id,
-            )
-        except SystemExit:
-            raise
+        # catch missing fields before paying for an upload. If the inputs are
+        # invalid, _build_configuration calls err() and exits non-zero here —
+        # which is the point: dry-run surfaces the problem before any upload.
+        resolved_cfg = _build_configuration(
+            schema, configuration, args.configuration_id,
+        )
         print(render_dry_run("extract", {
             "input": describe_input(args.input),
             "output": out_path,
