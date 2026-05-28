@@ -34,9 +34,9 @@ def add_subparser(subparsers):
         help="Diagnose your llamaparse install (Python, deps, API key, reachability).",
         description=(
             "Run preflight checks against the local install: Python version, "
-            "package version, `requests` and `llama-cloud` availability, "
-            "LLAMA_CLOUD_API_KEY presence, and a non-billable HEAD probe to "
-            "confirm the key authenticates against LlamaCloud."
+            "package version, `requests` / `llama-cloud` / `pymupdf` "
+            "availability, LLAMA_CLOUD_API_KEY presence, and a non-billable "
+            "HEAD probe to confirm the key authenticates against LlamaCloud."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
@@ -112,6 +112,22 @@ def check_sdk() -> tuple[str, str, Optional[str]]:
             _WARN,
             "llama-cloud SDK not installed",
             "REST fallback still works; `pip install llama-cloud` for the SDK path",
+        )
+
+
+def check_pymupdf() -> tuple[str, str, Optional[str]]:
+    """`pymupdf` is optional — it enables PDF detail in `inspect`."""
+    try:
+        import pymupdf  # noqa: F401
+
+        v = getattr(pymupdf, "__version__", "version unknown")
+        return _OK, f"pymupdf ({v}) [enables `inspect` PDF detail]", None
+    except ImportError:
+        return (
+            _WARN,
+            "pymupdf not installed",
+            "`inspect` still reports text files; "
+            "`pip install 'llamaparse-cli[inspect]'` adds PDF page counts / scan detection",
         )
 
 
@@ -204,6 +220,7 @@ def run(args) -> int:
         check_package_version(),
         check_requests(),
         check_sdk(),
+        check_pymupdf(),
         check_api_key(),
     ]
     if args.offline:
