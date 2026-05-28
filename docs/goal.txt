@@ -1,0 +1,22 @@
+# Corpus curation skill
+
+Build a Claude skill (and backbone integration) for large PDF corpora: inventory a directory, triage and classify documents, and produce a parse plan before spending credits or building agent pipelines.
+
+## Problem
+
+Single-file parsing skills and agentic capabilities work well for one document at a time. Real workloads—medical records, litigation exhibits, research archives—arrive as hundreds or thousands of PDFs in nested folders. Blindly parsing everything is slow, expensive, and produces uneven quality. Agents need a curated, searchable markdown with metadata, not a pile of raw PDFs.
+
+## User workflow
+
+1. Point Claude at a corpus root directory (local path).
+2. Claude explores the tree: file count, size, folder structure, duplicates, obvious outliers.
+3. Claude runs cheap local probes (backbone L0–L1) and samples a few files where needed.
+4. Claude drafts a **corpus plan** for user approval:
+   - inventory summary (counts, types, scan vs text-heavy estimates)
+   - proposed doc-type taxonomy and routing (which extractor / LlamaParse tier per type)
+   - cost and time estimate (pages × tier, batch vs incremental)
+   - curation priorities (must-parse now vs defer vs exclude)
+5. After approval, execute the plan: classify → route → parse → render into `mirror/` with hash-stamped frontmatter (backbone L2–L6).
+6. Deliver an agent-ready corpus: indexed markdown, stable paths, doc_type labels, and a manifest the user can query or chunk for RAG.
+
+point claude at a directory, claude explores and creates large-scale pdf triage and parse plan for curation for agentic use.  
