@@ -167,6 +167,19 @@ def _is_hidden(name):
     return name.startswith(".")
 
 
+def _passes_filters(info, *, extensions, supported_only):
+    """Return True if a described file survives the user-supplied filters.
+
+    Used for both directory walks and single-file targets so a `probe file.txt
+    --ext pdf` rejects what `probe ./dir --ext pdf` would have skipped over.
+    """
+    if extensions is not None and info["extension"] not in extensions:
+        return False
+    if supported_only and not info["supported"]:
+        return False
+    return True
+
+
 def scan_directory(
     target,
     *,
@@ -187,8 +200,14 @@ def scan_directory(
         err(f"probe target not found: {target}")
 
     if target.is_file():
-        # Treat a single-file target as a one-entry scan.
-        yield _describe_file(target, target.parent)
+        # Treat a single-file target as a one-entry scan, but apply the same
+        # --ext / --supported-only / hidden filters the directory walk uses so
+        # `probe a.txt --ext pdf` and `probe ./dir --ext pdf` agree on `a.txt`.
+        if not include_hidden and _is_hidden(target.name):
+            return
+        info = _describe_file(target, target.parent)
+        if _passes_filters(info, extensions=extensions, supported_only=supported_only):
+            yield info
         return
 
     if not target.is_dir():
@@ -221,9 +240,9 @@ def scan_directory(
 
             info = _describe_file(root_path / name, target)
 
-            if extensions is not None and info["extension"] not in extensions:
-                continue
-            if supported_only and not info["supported"]:
+            if not _passes_filters(
+                info, extensions=extensions, supported_only=supported_only
+            ):
                 continue
 
             yield info

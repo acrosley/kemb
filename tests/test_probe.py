@@ -160,6 +160,46 @@ class TestScanDirectory:
         assert len(items) == 1
         assert items[0]["name"] == "a.pdf"
 
+    # The single-file branch must apply the same filters the directory walk
+    # uses — otherwise `probe a.txt --ext pdf` reports a.txt while
+    # `probe ./dir --ext pdf` correctly skips it. See PR #3 review for the bug
+    # this guards against.
+    def test_single_file_ext_filter_drops_mismatch(self, sample_tree):
+        items = list(
+            _probe.scan_directory(sample_tree / "notes.txt", extensions={".pdf"})
+        )
+        assert items == []
+
+    def test_single_file_ext_filter_keeps_match(self, sample_tree):
+        items = list(
+            _probe.scan_directory(sample_tree / "a.pdf", extensions={".pdf"})
+        )
+        assert len(items) == 1
+        assert items[0]["name"] == "a.pdf"
+
+    def test_single_file_supported_only_drops_unsupported(self, sample_tree):
+        items = list(
+            _probe.scan_directory(sample_tree / "raw.bin", supported_only=True)
+        )
+        assert items == []
+
+    def test_single_file_supported_only_keeps_supported(self, sample_tree):
+        items = list(
+            _probe.scan_directory(sample_tree / "a.pdf", supported_only=True)
+        )
+        assert len(items) == 1
+
+    def test_single_file_hidden_dropped_by_default(self, sample_tree):
+        items = list(_probe.scan_directory(sample_tree / ".hidden.md"))
+        assert items == []
+
+    def test_single_file_hidden_kept_with_include_hidden(self, sample_tree):
+        items = list(
+            _probe.scan_directory(sample_tree / ".hidden.md", include_hidden=True)
+        )
+        assert len(items) == 1
+        assert items[0]["name"] == ".hidden.md"
+
     def test_missing_target_exits(self, tmp_path: Path):
         with pytest.raises(SystemExit):
             list(_probe.scan_directory(tmp_path / "does-not-exist"))
@@ -292,3 +332,20 @@ class TestProbeCommand:
         assert out_file.exists()
         content = out_file.read_text(encoding="utf-8")
         assert "summary:" in content
+
+    def test_probe_single_file_ext_filter_consistent_with_directory(
+        self, capsys, sample_tree
+    ):
+        """`probe notes.txt --ext pdf` must agree with `probe ./dir --ext pdf`.
+
+        Before the fix, the single-file branch unconditionally emitted the
+        target, so this would report notes.txt while the directory walk
+        correctly excluded it.
+        """
+        rc = _core.main(
+            ["probe", str(sample_tree / "notes.txt"), "--ext", "pdf", "--json"]
+        )
+        assert rc == 0
+        decoded = json.loads(capsys.readouterr().out)
+        assert decoded["files"] == []
+        assert decoded["summary"]["total_files"] == 0
