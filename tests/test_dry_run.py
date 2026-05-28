@@ -1,9 +1,11 @@
 """Tests for ``--dry-run`` across parse / extract / classify / split.
 
-These tests verify that dry-run never touches the network. We don't mock
-requests/the SDK here — if any subcommand attempted an upload under
---dry-run, the test would fail with a connection error (or a missing
-mock) instead of returning 0.
+These tests verify that dry-run never touches the network. The ``_ban_network``
+fixture below makes that a hard assertion: every ``requests`` HTTP verb is
+replaced with a stub that fails the test if called. Without it the suite would
+rely on ``requests.post`` *happening* to fail (because the stubbed API key is
+rejected), which would silently pass on a machine behind a captive portal that
+returns 200.
 """
 from __future__ import annotations
 
@@ -12,7 +14,29 @@ from pathlib import Path
 
 import pytest
 
+import requests
+
 from llamaparse_cli import _common, _core
+
+
+@pytest.fixture(autouse=True)
+def _ban_network(monkeypatch):
+    """Fail loudly if any dry-run path makes an HTTP call.
+
+    Applied to every test in this module so a regression that uploads under
+    --dry-run fails as an explicit assertion rather than an incidental
+    connection error.
+    """
+    def _forbidden(verb):
+        def _fail(*args, **kwargs):
+            pytest.fail(
+                f"dry-run made a network call: requests.{verb}"
+                f"(args={args!r}, kwargs={kwargs!r})"
+            )
+        return _fail
+
+    for verb in ("get", "post", "put", "patch", "delete", "head", "request"):
+        monkeypatch.setattr(requests, verb, _forbidden(verb))
 
 
 @pytest.fixture
