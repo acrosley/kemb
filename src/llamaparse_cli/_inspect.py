@@ -13,10 +13,10 @@ need OCR (`is_scan`), which need an encryption password (`is_encrypted`),
 which have AcroForm fields (`has_form_fields`), and roughly how much text
 sits in each.
 
-PDF inspection uses PyMuPDF (``import fitz``) as a soft dependency. If
-PyMuPDF is not installed, PDF entries fall back to a single
-``inspector_notes`` line explaining the missing dep — the rest of the report
-still renders.
+PDF inspection uses PyMuPDF (``import fitz``) as a soft dependency, installed
+via ``pip install 'llamaparse-cli[inspect]'``. If PyMuPDF is not installed,
+PDF entries fall back to a single ``inspector_notes`` line explaining the
+missing dep — the rest of the report still renders.
 
 Exit codes mirror probe:
     0 — inspection completed
@@ -79,7 +79,7 @@ def add_subparser(subparsers):
             "  llamaparse inspect ./inbox --ext pdf --json > inspect.json\n"
             "  llamaparse inspect ./inbox --supported-only --max-files 50\n"
             "\n"
-            "PDF inspection needs PyMuPDF: `pip install pymupdf`.\n"
+            "PDF inspection needs PyMuPDF: `pip install 'llamaparse-cli[inspect]'`.\n"
         ),
     )
     p.add_argument(
@@ -193,9 +193,18 @@ def _empty_inspection():
 
 
 def _merge_inspection(target, updates):
-    """Copy non-None fields from ``updates`` into ``target``, concatenating notes."""
-    notes = updates.pop("inspector_notes", []) if isinstance(updates, dict) else []
-    for key, value in (updates or {}).items():
+    """Copy non-None fields from ``updates`` into ``target``, concatenating notes.
+
+    Reads ``inspector_notes`` via ``.get()`` rather than ``.pop()`` so the
+    caller's ``updates`` dict is left intact — a "merge" helper shouldn't
+    quietly strip keys from its input.
+    """
+    if not isinstance(updates, dict):
+        return
+    notes = updates.get("inspector_notes", [])
+    for key, value in updates.items():
+        if key == "inspector_notes":
+            continue
         if value is not None:
             target[key] = value
     target["inspector_notes"].extend(notes)
@@ -214,11 +223,22 @@ def inspect_pdf(path, *, snippet_chars=0):
     """
     try:
         import fitz  # type: ignore  # PyMuPDF
-    except ImportError:
+    except ModuleNotFoundError:
         return {
             "inspector_notes": [
                 "pymupdf not installed; PDF inspection skipped "
-                "(install with `pip install pymupdf`)."
+                "(install with `pip install 'llamaparse-cli[inspect]'`)."
+            ],
+        }
+    except ImportError as exc:
+        # Installed but failed to load — typically a broken/partial wheel or a
+        # missing native DLL on Windows. Surface the real error so the user
+        # doesn't keep reinstalling a package that's already present.
+        return {
+            "inspector_notes": [
+                f"pymupdf is installed but failed to import "
+                f"({type(exc).__name__}: {exc}); "
+                f"try `pip install --force-reinstall pymupdf`."
             ],
         }
 
@@ -482,11 +502,14 @@ def _short_notes(entry):
         flags.append("encrypted")
     notes = entry.get("inspector_notes") or []
     if notes:
-        # Truncate the longest note rather than count them so the user sees
-        # the actual reason something is missing data.
+        # Show the first note in full (it's the most relevant reason data is
+        # missing) and signal how many more there are, so the table stays one
+        # line per file while pointing the user at --json for the rest.
         first = notes[0]
         if len(first) > 60:
             first = first[:57] + "..."
+        if len(notes) > 1:
+            first = f"{first} (+{len(notes) - 1} more)"
         flags.append(first)
     return "; ".join(flags)
 

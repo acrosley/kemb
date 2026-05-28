@@ -153,6 +153,21 @@ class TestMergeInspection:
         _inspect._merge_inspection(target, {"inspector_notes": ["second"]})
         assert target["inspector_notes"] == ["first", "second"]
 
+    def test_overwrites_with_false(self):
+        # False is a real value, not "no information" — it must overwrite.
+        # Guards against a future refactor to `if value:` swallowing falsy data.
+        target = _inspect._empty_inspection()
+        target["is_text"] = True
+        _inspect._merge_inspection(target, {"is_text": False})
+        assert target["is_text"] is False
+
+    def test_does_not_mutate_updates(self):
+        # A "merge" helper shouldn't strip keys from its input dict.
+        target = _inspect._empty_inspection()
+        updates = {"page_count": 3, "inspector_notes": ["note"]}
+        _inspect._merge_inspection(target, updates)
+        assert updates == {"page_count": 3, "inspector_notes": ["note"]}
+
 
 # ---------------------------------------------------------------------------
 # inspect_pdf
@@ -196,22 +211,45 @@ class TestInspectPdf:
         assert result["snippet"] is None
 
     def test_missing_pymupdf_returns_note(self, text_pdf, monkeypatch):
-        # Force the lazy import to fail so we exercise the soft-dep branch.
+        # ModuleNotFoundError = genuinely not installed → the "install it" note.
         import builtins
 
         real_import = builtins.__import__
 
         def fake_import(name, *args, **kwargs):
             if name == "fitz":
-                raise ImportError("simulated missing PyMuPDF")
+                raise ModuleNotFoundError("No module named 'fitz'")
             return real_import(name, *args, **kwargs)
 
         monkeypatch.setattr(builtins, "__import__", fake_import)
         result = _inspect.inspect_pdf(text_pdf)
         assert result["inspector_notes"]
-        assert "pymupdf" in result["inspector_notes"][0].lower()
-        # Other fields should be absent (None / not set).
-        assert "page_count" not in result or result["page_count"] is None
+        note = result["inspector_notes"][0].lower()
+        assert "not installed" in note
+        assert "[inspect]" in note
+        # The soft-dep branch returns only the note, nothing else.
+        assert set(result.keys()) == {"inspector_notes"}
+
+    def test_broken_pymupdf_import_is_distinguished(self, text_pdf, monkeypatch):
+        # A plain ImportError (e.g. a missing native DLL on Windows) means the
+        # package IS installed but failed to load — a different fix than
+        # "install it", so it gets a different note.
+        import builtins
+
+        real_import = builtins.__import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == "fitz":
+                raise ImportError("DLL load failed while importing fitz")
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", fake_import)
+        result = _inspect.inspect_pdf(text_pdf)
+        note = result["inspector_notes"][0].lower()
+        assert "failed to import" in note
+        assert "dll load failed" in note
+        # We must NOT tell the user to install something they already have.
+        assert "not installed" not in note
 
     def test_unreadable_pdf_returns_note(self, tmp_path: Path):
         broken = tmp_path / "broken.pdf"
