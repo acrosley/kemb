@@ -205,6 +205,7 @@ class TestRunFastTier:
             poll_timeout=600.0,
             auto_install=False,
             stdout=False,
+            dry_run=False,
         )
         defaults.update(overrides)
         return argparse.Namespace(**defaults)

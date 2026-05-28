@@ -18,10 +18,12 @@ from ._common import (
     API_HOST,
     auth_headers,
     coerce_json_arg,
+    describe_input,
     err,
     import_requests,
     load_sdk_client,
     poll_job,
+    render_dry_run,
     surface_api_error,
     upload_file_rest,
     upload_file_sdk,
@@ -85,6 +87,22 @@ def extract_with_rest(input_path, schema, configuration, configuration_id,
 
     final = poll_job(f"{REST_BASE}/{job_id}", auth_headers(), poll_timeout)
     return _extract_data(final)
+
+
+def _schema_summary(schema):
+    """Short description of a JSON Schema for the dry-run preview."""
+    if schema is None:
+        return None
+    keys = list(schema.keys())[:6]
+    props = schema.get("properties") if isinstance(schema, dict) else None
+    if isinstance(props, dict):
+        prop_keys = list(props.keys())
+        suffix = f", properties: {prop_keys[:8]}"
+        if len(prop_keys) > 8:
+            suffix = suffix[:-1] + ", ...]"
+    else:
+        suffix = ""
+    return f"keys={keys}{suffix}"
 
 
 def _build_configuration(schema, configuration, configuration_id) -> dict:
@@ -178,6 +196,9 @@ def add_subparser(subparsers):
                    help="If llama-cloud isn't importable, try `pip install` it.")
     p.add_argument("--stdout", action="store_true",
                    help="Also write the result to stdout.")
+    p.add_argument("--dry-run", action="store_true",
+                   help="Validate inputs and print the resolved plan without "
+                        "uploading the document or starting a job (zero credits).")
     p.set_defaults(func=run)
     return p
 
@@ -201,6 +222,26 @@ def run(args):
     )
 
     out_path = args.output or args.input.with_suffix(".extract.json")
+
+    if args.dry_run:
+        transport = "REST (forced)" if args.rest else "SDK (REST fallback)"
+        # Resolve the configuration that *would* have been sent, so users
+        # catch missing fields before paying for an upload. If the inputs are
+        # invalid, _build_configuration calls err() and exits non-zero here —
+        # which is the point: dry-run surfaces the problem before any upload.
+        resolved_cfg = _build_configuration(
+            schema, configuration, args.configuration_id,
+        )
+        print(render_dry_run("extract", {
+            "input": describe_input(args.input),
+            "output": out_path,
+            "schema": _schema_summary(schema),
+            "configuration-id": args.configuration_id,
+            "configuration": resolved_cfg if not args.configuration_id else None,
+            "project-id": args.project_id,
+            "transport": transport,
+        }))
+        return 0
 
     if args.rest:
         text = extract_with_rest(

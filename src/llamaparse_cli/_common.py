@@ -215,3 +215,62 @@ def write_output(out_path, text: str) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(text, encoding="utf-8")
     print(f"wrote {len(text):,} chars to {out_path}")
+
+
+def _human_size(n: int) -> str:
+    """Render a byte count as a short, fixed-width string ('4.2 KB').
+
+    Lives here too (not just in ``_probe``) so the dry-run preview can call
+    it without forcing every subcommand to import the probe module.
+    """
+    if n < 1024:
+        return f"{n} B"
+    units = ("KB", "MB", "GB", "TB", "PB")
+    size = float(n)
+    for unit in units:
+        size /= 1024.0
+        if size < 1024.0 or unit == units[-1]:
+            return f"{size:.1f} {unit}"
+    return f"{size:.1f} {units[-1]}"
+
+
+def render_dry_run(command: str, fields: dict) -> str:
+    """Render a dry-run preview shared by parse/extract/classify/split.
+
+    Field values are coerced to short strings here so callers can pass
+    paths, ints, or arbitrary objects without thinking about it. The
+    output always ends with the same trailing reassurance so a CI grep
+    for "no upload" is reliable.
+    """
+    lines = [f"[dry-run] llamaparse {command}"]
+    width = max((len(k) for k in fields), default=0)
+    for key, value in fields.items():
+        rendered = _stringify_dry_run_value(value)
+        lines.append(f"  {key:<{width}} : {rendered}")
+    lines.append("no upload, no job, no credits spent.")
+    return "\n".join(lines)
+
+
+def _stringify_dry_run_value(value) -> str:
+    if value is None:
+        return "(none)"
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, (dict, list)):
+        # Keep nested JSON compact — full schemas can be huge.
+        s = json.dumps(value, default=str)
+        if len(s) > 200:
+            s = s[:197] + "..."
+        return s
+    return str(value)
+
+
+def describe_input(path) -> str:
+    """Format an input file as '<path> (<size>)' for dry-run previews."""
+    try:
+        size = path.stat().st_size
+    except OSError:
+        return f"{path} (size unavailable)"
+    return f"{path} ({_human_size(size)})"
