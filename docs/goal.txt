@@ -19,4 +19,4 @@ Single-file parsing skills and agentic capabilities work well for one document a
 5. After approval, execute the plan: classify → route → parse → render into `mirror/` with hash-stamped frontmatter (backbone L2–L6).
 6. Deliver an agent-ready corpus: indexed markdown, stable paths, doc_type labels, and a manifest the user can query or chunk for RAG.
 
-point claude at a directory, claude explores and creates large-scale pdf triage and parse plan for curation for agentic use.  
+point claude at a directory, claude explores and creates large-scale pdf triage and parse plan curated for agentic use.  
