@@ -445,6 +445,13 @@ def render_table(entries, summary):
                 f"{density:>{density_w}}  "
                 f"{notes}"
             )
+            # Snippets ride on a continuation line under the row rather than
+            # in a dedicated column — a 200-char snippet would otherwise blow
+            # out the table width and make the main columns unreadable. The
+            # caller already capped this string at --snippet N chars upstream.
+            snippet = e.get("snippet")
+            if snippet:
+                lines.append(f"    > {snippet}")
 
     lines.append("")
     lines.append(_summary_block(summary))

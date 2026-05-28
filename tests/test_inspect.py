@@ -383,6 +383,42 @@ class TestRendering:
         out = _inspect.render_table([], _inspect.summarize([]))
         assert "no files matched" in out
 
+    def test_render_table_shows_snippets_when_present(self, mixed_tree):
+        """Snippets must surface in human-table mode, not just JSON.
+
+        Before the fix, `--snippet N` (without `--json`) silently extracted
+        text but never displayed it because the table row dropped the field.
+        Regression guard for the Codex P2 review on PR #6.
+        """
+        entries = []
+        for item in _probe.scan_directory(mixed_tree):
+            if item.get("_truncated"):
+                continue
+            item.update(_inspect.inspect_file(Path(item["path"]), snippet_chars=60))
+            entries.append(item)
+        summary = _inspect.summarize(entries)
+        out = _inspect.render_table(entries, summary)
+        # Continuation-line marker plus the actual snippet content.
+        assert "> " in out
+        # The text PDF contains "Hello world." in its body; the notes.txt
+        # fixture contains "These are the notes."
+        assert "Hello world" in out or "These are the notes" in out
+
+    def test_render_table_omits_continuation_when_no_snippet(self, mixed_tree):
+        """No `> ` continuation lines when the user didn't ask for snippets."""
+        entries = []
+        for item in _probe.scan_directory(mixed_tree):
+            if item.get("_truncated"):
+                continue
+            item.update(_inspect.inspect_file(Path(item["path"])))  # snippet_chars=0
+            entries.append(item)
+        summary = _inspect.summarize(entries)
+        out = _inspect.render_table(entries, summary)
+        # Every line should be either header/divider/row/summary — never a
+        # bare `    > ` snippet continuation.
+        for line in out.splitlines():
+            assert not line.startswith("    > ")
+
 
 # ---------------------------------------------------------------------------
 # End-to-end: `llamaparse inspect ...` through _core.main
@@ -449,6 +485,21 @@ class TestInspectCommand:
         assert notes_txt["snippet"] is not None
         assert len(text_pdf["snippet"]) <= 50
         assert len(notes_txt["snippet"]) <= 50
+
+    def test_inspect_snippet_visible_in_table_mode(self, capsys, mixed_tree):
+        """Without `--json`, the snippet must still be visible.
+
+        Regression guard: previously `inspect ... --snippet N` (table mode)
+        extracted snippets but the table renderer dropped the field, so the
+        feature appeared to do nothing from the user's POV.
+        """
+        rc = _core.main(["inspect", str(mixed_tree), "--snippet", "60"])
+        assert rc == 0
+        out = capsys.readouterr().out
+        # Continuation-line marker introduced for snippet rendering.
+        assert "> " in out
+        # Content from one of the fixtures should appear in the snippet line.
+        assert "Hello world" in out or "These are the notes" in out
 
     def test_inspect_single_file(self, capsys, text_pdf):
         rc = _core.main(["inspect", str(text_pdf), "--json"])
