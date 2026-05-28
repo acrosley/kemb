@@ -22,8 +22,74 @@ import stat
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Iterator, List, Optional, TypedDict
 
 from ._common import err
+
+
+# --------------------------------------------------------------------------- #
+# Output shapes
+#
+# probe's table and --json output are a public contract — downstream tools pipe
+# the JSON into other steps. These TypedDicts document that contract in one
+# place. They add no runtime overhead (with `from __future__ import
+# annotations` the bodies are never evaluated) and serialize as plain dicts.
+# --------------------------------------------------------------------------- #
+
+
+class FileInfo(TypedDict):
+    """Per-file metadata, one entry in the report's ``files`` list."""
+
+    path: str
+    relative: str
+    name: str
+    extension: str
+    size: int
+    size_human: str
+    mtime: float
+    mtime_iso: Optional[str]
+    mime_type: Optional[str]
+    supported: bool
+    readable: bool
+    error: Optional[str]
+
+
+class WalkError(TypedDict):
+    """A directory ``os.walk`` could not enter (permission denied, etc.)."""
+
+    path: str
+    error: str
+
+
+class ExtensionBucket(TypedDict):
+    """Aggregate counts for one extension in the summary."""
+
+    count: int
+    bytes: int
+
+
+class ProbeSummary(TypedDict):
+    """Corpus-level totals computed from the file stream."""
+
+    total_files: int
+    total_bytes: int
+    total_size_human: str
+    supported_files: int
+    supported_bytes: int
+    supported_size_human: str
+    unreadable: int
+    truncated: bool
+    truncated_limit: Optional[int]
+    walk_errors: List[WalkError]
+    by_extension: dict
+
+
+class ProbeReport(TypedDict):
+    """The full ``--json`` envelope."""
+
+    generated_at: str
+    files: List[FileInfo]
+    summary: ProbeSummary
 
 # File formats LlamaCloud's document APIs (parse/extract/classify/split) will
 # accept. Kept as a conservative set drawn from the public LlamaParse
@@ -211,7 +277,7 @@ def scan_directory(
     include_hidden=False,
     supported_only=False,
     follow_symlinks=False,
-):
+) -> Iterator[dict]:
     """Yield per-file metadata dicts for everything under ``target``.
 
     Files are emitted in walk order. The caller decides how to display or
@@ -306,7 +372,7 @@ def scan_directory(
         yield {"_truncated": True, "limit": max_files}
 
 
-def _describe_file(path, base):
+def _describe_file(path, base) -> FileInfo:
     """Build the metadata dict for one file."""
     try:
         st = path.stat()
@@ -345,7 +411,7 @@ def _describe_file(path, base):
     }
 
 
-def summarize(entries):
+def summarize(entries) -> ProbeSummary:
     """Reduce the per-file stream to aggregate counts."""
     total_files = 0
     total_bytes = 0
@@ -397,7 +463,7 @@ def summarize(entries):
 # --------------------------------------------------------------------------- #
 
 
-def render_table(entries, summary):
+def render_table(entries, summary) -> str:
     """Render the probe report as a fixed-width ASCII table.
 
     Returns the full report as one string so the caller can both print it
@@ -467,17 +533,14 @@ def _summary_block(summary):
     return "\n".join(parts)
 
 
-def render_json(entries, summary):
+def render_json(entries, summary) -> str:
     """Compose the JSON envelope: files + summary + generated_at."""
-    return json.dumps(
-        {
-            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "files": entries,
-            "summary": summary,
-        },
-        indent=2,
-        ensure_ascii=False,
-    )
+    report: ProbeReport = {
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "files": entries,
+        "summary": summary,
+    }
+    return json.dumps(report, indent=2, ensure_ascii=False)
 
 
 # --------------------------------------------------------------------------- #
