@@ -29,6 +29,7 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import List, Literal, Optional, TypedDict
 
 from . import _probe
 from ._common import err
@@ -58,6 +59,68 @@ DENSITY_SAMPLE_PAGES = 3
 # `--snippet`. Capped so the inspector doesn't try to slurp a 2GB CSV into
 # memory just to render a 200-char preview.
 TEXT_SNIPPET_READ_CAP = 64 * 1024
+
+
+# --------------------------------------------------------------------------- #
+# Output shapes
+#
+# inspect enriches each probe FileInfo with the L1 fields below. `kind` is the
+# single coarse classification a downstream router cares about (scans →
+# agentic tier, encrypted → needs a password); it's stored on every entry so
+# JSON consumers don't have to re-derive it from the booleans.
+# --------------------------------------------------------------------------- #
+
+# Closed set of file classifications. "other" = a supported format we don't
+# have a local content inspector for (images, Office docs); "unknown" = an
+# unsupported extension. The raw extension is still available in `extension`.
+InspectKind = Literal["text-pdf", "scan-pdf", "encrypted", "text", "other", "unknown"]
+
+
+class InspectionResult(TypedDict):
+    """The canonical L1 enrichment shape, merged onto a probe FileInfo.
+
+    Every field except ``inspector_notes`` is ``None`` when unknown (no
+    PyMuPDF, unreadable file, non-PDF, etc.) so the shape is stable across
+    file types.
+    """
+
+    kind: InspectKind
+    is_text: Optional[bool]
+    is_scan: Optional[bool]
+    page_count: Optional[int]
+    text_density: Optional[int]
+    has_form_fields: Optional[bool]
+    is_encrypted: Optional[bool]
+    snippet: Optional[str]
+    inspector_notes: List[str]
+
+
+class InspectedFile(_probe.FileInfo, InspectionResult):
+    """A probe FileInfo (L0 metadata) enriched with L1 inspection fields."""
+
+
+class InspectSummary(TypedDict):
+    """Corpus-level totals for the inspect report."""
+
+    total_files: int
+    by_extension: dict
+    pdf_total: int
+    pdf_scans: int
+    pdf_text: int
+    pdf_encrypted: int
+    pdf_with_forms: int
+    pdf_total_pages: int
+    truncated: bool
+    truncated_limit: Optional[int]
+    walk_errors: List[_probe.WalkError]
+
+
+class InspectReport(TypedDict):
+    """The full ``--json`` envelope."""
+
+    generated_at: str
+    files: List[InspectedFile]
+    summary: InspectSummary
 
 
 def add_subparser(subparsers):
@@ -149,7 +212,7 @@ def add_subparser(subparsers):
 # --------------------------------------------------------------------------- #
 
 
-def inspect_file(path, *, snippet_chars=0):
+def inspect_file(path, *, snippet_chars=0) -> InspectionResult:
     """Return the L1 fields for a single file.
 
     The shape is always the same regardless of extension — fields that don't
@@ -175,12 +238,41 @@ def inspect_file(path, *, snippet_chars=0):
                 f"unsupported extension {ext or '(none)'}; metadata only"
             )
 
+    # Classify once, here, so every entry carries a stable `kind` into both
+    # the table and the JSON output — callers never re-derive it.
+    result["kind"] = _classify_kind(result, ext)
     return result
 
 
-def _empty_inspection():
-    """The canonical inspection-result shape, with every field set to its 'unknown' default."""
+def _classify_kind(result, ext) -> InspectKind:
+    """Collapse the L1 booleans + extension into one coarse classification.
+
+    Checked most-specific first. ``encrypted`` wins over scan/text because an
+    encrypted PDF's text density is unknowable; ``other`` covers supported
+    formats with no local inspector; ``unknown`` covers unsupported ones.
+    """
+    if result.get("is_encrypted"):
+        return "encrypted"
+    if result.get("is_scan"):
+        return "scan-pdf"
+    if ext == ".pdf" and result.get("is_text"):
+        return "text-pdf"
+    if result.get("is_text"):
+        return "text"
+    if ext in _probe.SUPPORTED_EXTENSIONS:
+        return "other"
+    return "unknown"
+
+
+def _empty_inspection() -> InspectionResult:
+    """The canonical inspection-result shape, with every field set to its 'unknown' default.
+
+    ``inspector_notes`` is an empty list (not None) so callers can always
+    ``.append()`` / ``.extend()`` safely. ``kind`` defaults to "unknown" and
+    is finalized by ``inspect_file`` once the file has been classified.
+    """
     return {
+        "kind": "unknown",
         "is_text": None,
         "is_scan": None,
         "page_count": None,
@@ -378,7 +470,7 @@ def inspect_text(path, *, snippet_chars=0):
 # --------------------------------------------------------------------------- #
 
 
-def summarize(entries):
+def summarize(entries) -> "InspectSummary":
     """Aggregate the per-file inspection results into corpus-level totals."""
     total = 0
     by_ext = {}
@@ -390,11 +482,15 @@ def summarize(entries):
     total_pages = 0
     truncated = False
     truncated_limit = None
+    walk_errors = []
 
     for entry in entries:
         if entry.get("_truncated"):
             truncated = True
             truncated_limit = entry.get("limit")
+            continue
+        if entry.get("_walk_error"):
+            walk_errors.append(entry["_walk_error"])
             continue
         total += 1
         ext = entry.get("extension") or "(no ext)"
@@ -426,6 +522,7 @@ def summarize(entries):
         "pdf_total_pages": total_pages,
         "truncated": truncated,
         "truncated_limit": truncated_limit,
+        "walk_errors": walk_errors,
     }
 
 
@@ -434,7 +531,7 @@ def summarize(entries):
 # --------------------------------------------------------------------------- #
 
 
-def render_table(entries, summary):
+def render_table(entries, summary) -> str:
     """Render an ASCII table summarizing what each file looks like."""
     lines = []
     if not entries:
@@ -452,7 +549,7 @@ def render_table(entries, summary):
         lines.append(header)
         lines.append("-" * len(header))
         for e in entries:
-            kind = _kind_label(e)
+            kind = e.get("kind", "unknown")
             pages = "" if e.get("page_count") is None else str(e["page_count"])
             density = (
                 "" if e.get("text_density") is None else str(e["text_density"])
@@ -476,21 +573,6 @@ def render_table(entries, summary):
     lines.append("")
     lines.append(_summary_block(summary))
     return "\n".join(lines)
-
-
-def _kind_label(entry):
-    """One-word classification for the table's KIND column."""
-    if entry.get("is_encrypted"):
-        return "encrypted"
-    if entry.get("is_scan"):
-        return "scan-pdf"
-    if entry.get("extension") == ".pdf" and entry.get("is_text"):
-        return "text-pdf"
-    if entry.get("is_text"):
-        return "text"
-    if entry.get("extension") in _probe.SUPPORTED_EXTENSIONS:
-        return entry["extension"].lstrip(".") or "file"
-    return "unknown"
 
 
 def _short_notes(entry):
@@ -543,20 +625,22 @@ def _summary_block(summary):
             f"  note: truncated at --max-files={summary['truncated_limit']}; "
             f"raise the cap to see the rest."
         )
+    walk_errors = summary.get("walk_errors") or []
+    if walk_errors:
+        parts.append(f"  unreadable dirs : {len(walk_errors)}")
+        for we in walk_errors:
+            parts.append(f"    {we['path']}: {we['error']}")
     return "\n".join(parts)
 
 
-def render_json(entries, summary):
+def render_json(entries, summary) -> str:
     """JSON envelope with the inspect-specific summary block."""
-    return json.dumps(
-        {
-            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "files": entries,
-            "summary": summary,
-        },
-        indent=2,
-        ensure_ascii=False,
-    )
+    report: InspectReport = {
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "files": entries,
+        "summary": summary,
+    }
+    return json.dumps(report, indent=2, ensure_ascii=False)
 
 
 # --------------------------------------------------------------------------- #
@@ -575,7 +659,7 @@ def run(args):
     extensions = _probe._normalize_extensions(args.ext)
 
     entries = []
-    truncated_marker = None
+    sentinels = []
     for item in _probe.scan_directory(
         args.target,
         extensions=extensions,
@@ -585,8 +669,11 @@ def run(args):
         supported_only=args.supported_only,
         follow_symlinks=args.follow_symlinks,
     ):
-        if item.get("_truncated"):
-            truncated_marker = item
+        # probe yields file dicts plus truncation / walk-error sentinels;
+        # pass the sentinels straight through to summarize() and only run L1
+        # enrichment on real files.
+        if item.get("_truncated") or item.get("_walk_error"):
+            sentinels.append(item)
             continue
         # Layer L1 enrichment on top of L0 metadata. Done one file at a time
         # so a single corrupt PDF doesn't take down the whole report.
@@ -594,8 +681,7 @@ def run(args):
         item.update(l1)
         entries.append(item)
 
-    entries_for_summary = entries + ([truncated_marker] if truncated_marker else [])
-    summary = summarize(entries_for_summary)
+    summary = summarize(entries + sentinels)
 
     if args.json:
         report = render_json(entries, summary)

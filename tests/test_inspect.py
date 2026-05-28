@@ -7,6 +7,7 @@ file dependencies.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -111,20 +112,13 @@ def mixed_tree(tmp_path: Path) -> Path:
 class TestEmptyInspection:
     def test_shape_is_stable(self):
         empty = _inspect._empty_inspection()
-        assert set(empty.keys()) == {
-            "is_text",
-            "is_scan",
-            "page_count",
-            "text_density",
-            "has_form_fields",
-            "is_encrypted",
-            "snippet",
-            "inspector_notes",
-        }
-        # Every value except the notes list starts as None.
+        assert set(empty.keys()) == set(_inspect.InspectionResult.__annotations__)
+        # notes is an appendable list; kind defaults to "unknown"; the rest
+        # start as None ("not yet determined").
         assert empty["inspector_notes"] == []
+        assert empty["kind"] == "unknown"
         for key, value in empty.items():
-            if key != "inspector_notes":
+            if key not in ("inspector_notes", "kind"):
                 assert value is None
 
 
@@ -325,6 +319,48 @@ class TestInspectFile:
 
 
 # ---------------------------------------------------------------------------
+# kind (stored, closed-set classification)
+# ---------------------------------------------------------------------------
+
+
+class TestKind:
+    def test_text_pdf_kind(self, text_pdf):
+        assert _inspect.inspect_file(text_pdf)["kind"] == "text-pdf"
+
+    def test_scan_pdf_kind(self, scan_pdf):
+        assert _inspect.inspect_file(scan_pdf)["kind"] == "scan-pdf"
+
+    def test_encrypted_pdf_kind(self, encrypted_pdf):
+        assert _inspect.inspect_file(encrypted_pdf)["kind"] == "encrypted"
+
+    def test_text_file_kind(self, tmp_path: Path):
+        p = tmp_path / "notes.txt"
+        p.write_text("hello", encoding="utf-8")
+        assert _inspect.inspect_file(p)["kind"] == "text"
+
+    def test_supported_non_inspectable_is_other(self, tmp_path: Path):
+        # A supported format with no local inspector (e.g. an image) → "other",
+        # not the raw extension. The extension itself stays in `extension`.
+        p = tmp_path / "logo.png"
+        p.write_bytes(b"\x89PNG\r\n")
+        assert _inspect.inspect_file(p)["kind"] == "other"
+
+    def test_unsupported_is_unknown(self, tmp_path: Path):
+        p = tmp_path / "blob.bin"
+        p.write_bytes(b"\x00")
+        assert _inspect.inspect_file(p)["kind"] == "unknown"
+
+    def test_kind_is_within_closed_set(self, mixed_tree):
+        # Every entry's kind must be one of the documented literals.
+        allowed = {"text-pdf", "scan-pdf", "encrypted", "text", "other", "unknown"}
+        for item in _probe.scan_directory(mixed_tree):
+            if item.get("_truncated") or item.get("_walk_error"):
+                continue
+            result = _inspect.inspect_file(Path(item["path"]))
+            assert result["kind"] in allowed
+
+
+# ---------------------------------------------------------------------------
 # summarize
 # ---------------------------------------------------------------------------
 
@@ -375,6 +411,22 @@ class TestSummarize:
         assert summary["truncated_limit"] == 1
         assert summary["total_files"] == 1
 
+    def test_walk_error_sentinel_not_counted_as_file(self):
+        # Regression: inspect must skip probe's walk-error sentinels rather
+        # than counting them as files (or crashing on the missing keys).
+        entries = [
+            {"extension": ".pdf", "size": 10, "page_count": 1, "is_text": True},
+            {"_walk_error": {"path": "/locked", "error": "PermissionError: denied"}},
+        ]
+        summary = _inspect.summarize(entries)
+        assert summary["total_files"] == 1
+        assert len(summary["walk_errors"]) == 1
+        assert summary["walk_errors"][0]["path"] == "/locked"
+
+    def test_summary_keys_match_typed_shape(self):
+        summary = _inspect.summarize([])
+        assert set(summary.keys()) == set(_inspect.InspectSummary.__annotations__)
+
 
 # ---------------------------------------------------------------------------
 # Rendering
@@ -412,10 +464,12 @@ class TestRendering:
         decoded = json.loads(out)
         assert "files" in decoded and "summary" in decoded
         assert decoded["summary"]["total_files"] == len(entries)
-        # All inspect fields should round-trip.
+        # All inspect fields should round-trip, including the stored `kind`
+        # (so consumers don't have to re-derive it from the booleans).
         a_pdf = next(f for f in decoded["files"] if f["extension"] == ".pdf")
         assert "is_scan" in a_pdf
         assert "is_text" in a_pdf
+        assert a_pdf["kind"] in ("text-pdf", "scan-pdf", "encrypted", "other")
 
     def test_render_table_handles_empty_match(self):
         out = _inspect.render_table([], _inspect.summarize([]))
@@ -490,6 +544,29 @@ class TestInspectCommand:
         assert "text.pdf" in names
         assert "scan.pdf" in names
         assert "notes.txt" in names
+
+    def test_inspect_survives_unreadable_dir(self, capsys, mixed_tree, monkeypatch):
+        """A directory os.walk can't enter must not crash inspect.
+
+        Regression: inspect's run() only filtered the truncation sentinel, so
+        probe's walk-error sentinel hit `Path(item["path"])` and raised KeyError.
+        """
+        real_walk = os.walk
+
+        def fake_walk(top, *args, **kwargs):
+            onerror = kwargs.get("onerror")
+            if onerror is not None:
+                exc = PermissionError(13, "Permission denied")
+                exc.filename = str(mixed_tree / "locked")
+                onerror(exc)
+            kwargs.pop("onerror", None)
+            yield from real_walk(top, *args, **kwargs)
+
+        monkeypatch.setattr(_probe.os, "walk", fake_walk)
+        rc = _core.main(["inspect", str(mixed_tree), "--json"])
+        assert rc == 0
+        decoded = json.loads(capsys.readouterr().out)
+        assert len(decoded["summary"]["walk_errors"]) == 1
 
     def test_inspect_ext_filter(self, capsys, mixed_tree):
         rc = _core.main(
