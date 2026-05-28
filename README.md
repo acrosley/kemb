@@ -195,10 +195,13 @@ that need a password before upload, and confirm text snippets look right
 before spending credits. Like `probe`, it makes zero network calls.
 
 PDF inspection uses PyMuPDF as a **soft dependency** — install it with
-`pip install pymupdf` (or `pip install 'llamaparse-cli[inspect]'`). Without
-it, PDFs still appear in the report but with a "pymupdf not installed"
+`pip install 'llamaparse-cli[inspect]'` (which pins a known-good version).
+Without it, PDFs still appear in the report but with a "pymupdf not installed"
 note instead of page-count / scan / form-field details. Non-PDF formats
 (text, markup) work without any extra install.
+
+A PDF is flagged as a scan when extractable text in the first 3 pages averages
+under 50 characters per page — the same sample used for `--snippet`.
 
 ### --dry-run — preview a job without spending credits
 
