@@ -5,6 +5,9 @@ All checks are local-only — probe never makes a network call.
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -46,6 +49,48 @@ class TestHumanSize:
 
     def test_gigabytes(self):
         assert _probe._human_size(3 * 1024 ** 3) == "3.0 GB"
+
+
+class TestIsHidden:
+    def test_dotfile_detected_by_name(self):
+        assert _probe._is_hidden(".rc") is True
+
+    def test_normal_name_is_not_hidden(self):
+        assert _probe._is_hidden("README.md") is False
+
+    def test_dotfile_path_detected(self, tmp_path: Path):
+        p = tmp_path / ".dotfile"
+        p.write_text("x")
+        assert _probe._is_hidden(p) is True
+
+    def test_normal_path_not_hidden(self, tmp_path: Path):
+        p = tmp_path / "plain.txt"
+        p.write_text("x")
+        assert _probe._is_hidden(p) is False
+
+    @pytest.mark.skipif(os.name != "nt", reason="Windows-only attribute check")
+    def test_windows_hidden_attribute_detected(self, tmp_path: Path):
+        # Files marked hidden via the NTFS attribute (Thumbs.db, desktop.ini,
+        # `attrib +h foo`) have no leading dot but should still be skipped.
+        p = tmp_path / "secret.txt"
+        p.write_text("x")
+        subprocess.run(["attrib", "+h", str(p)], check=True)
+        assert _probe._is_hidden(p) is True
+
+    @pytest.mark.skipif(os.name != "nt", reason="Windows-only attribute check")
+    def test_windows_hidden_file_excluded_from_scan(self, tmp_path: Path):
+        # End-to-end: a Windows-hidden file should not appear in scan output.
+        (tmp_path / "visible.txt").write_text("v")
+        hidden = tmp_path / "Thumbs.db"
+        hidden.write_text("h")
+        subprocess.run(["attrib", "+h", str(hidden)], check=True)
+
+        items = [
+            e for e in _probe.scan_directory(tmp_path)
+            if not e.get("_truncated") and not e.get("_walk_error")
+        ]
+        names = sorted(e["name"] for e in items)
+        assert names == ["visible.txt"]
 
 
 # ---------------------------------------------------------------------------
@@ -244,6 +289,78 @@ class TestSummarize:
         ]
         summary = _probe.summarize(entries)
         assert summary["unreadable"] == 1
+
+    def test_collects_walk_error_sentinels(self):
+        entries = [
+            {"extension": ".pdf", "size": 10, "supported": True, "readable": True},
+            {"_walk_error": {"path": "/locked", "error": "PermissionError: denied"}},
+        ]
+        summary = _probe.summarize(entries)
+        assert summary["total_files"] == 1
+        assert len(summary["walk_errors"]) == 1
+        assert summary["walk_errors"][0]["path"] == "/locked"
+
+
+# ---------------------------------------------------------------------------
+# os.walk error surfacing
+# ---------------------------------------------------------------------------
+
+
+class TestWalkErrors:
+    def test_scan_surfaces_walk_errors(self, tmp_path: Path, monkeypatch):
+        """A directory os.walk cannot enter is reported, not silently dropped."""
+        (tmp_path / "ok.pdf").write_bytes(b"%PDF-1.4")
+        real_walk = os.walk
+
+        def fake_walk(top, *args, **kwargs):
+            onerror = kwargs.get("onerror")
+            if onerror is not None:
+                exc = PermissionError(13, "Permission denied")
+                exc.filename = str(tmp_path / "locked")
+                onerror(exc)
+            # Drop onerror so the real walk doesn't try to re-handle it.
+            kwargs.pop("onerror", None)
+            yield from real_walk(top, *args, **kwargs)
+
+        monkeypatch.setattr(_probe.os, "walk", fake_walk)
+        items = list(_probe.scan_directory(tmp_path))
+
+        files = [e for e in items if not e.get("_truncated") and not e.get("_walk_error")]
+        walk_errors = [e["_walk_error"] for e in items if e.get("_walk_error")]
+        assert [e["name"] for e in files] == ["ok.pdf"]
+        assert len(walk_errors) == 1
+        assert "Permission denied" in walk_errors[0]["error"]
+        assert "locked" in walk_errors[0]["path"]
+
+    def test_walk_errors_appear_in_table_and_json(
+        self, tmp_path: Path, monkeypatch, capsys
+    ):
+        (tmp_path / "ok.pdf").write_bytes(b"%PDF-1.4")
+        real_walk = os.walk
+
+        def fake_walk(top, *args, **kwargs):
+            onerror = kwargs.get("onerror")
+            if onerror is not None:
+                exc = PermissionError(13, "Permission denied")
+                exc.filename = str(tmp_path / "locked")
+                onerror(exc)
+            kwargs.pop("onerror", None)
+            yield from real_walk(top, *args, **kwargs)
+
+        monkeypatch.setattr(_probe.os, "walk", fake_walk)
+
+        # JSON envelope carries the walk errors under summary.
+        rc = _core.main(["probe", str(tmp_path), "--json"])
+        assert rc == 0
+        decoded = json.loads(capsys.readouterr().out)
+        assert len(decoded["summary"]["walk_errors"]) == 1
+
+        # Table output names the unreadable directory.
+        rc = _core.main(["probe", str(tmp_path)])
+        assert rc == 0
+        table = capsys.readouterr().out
+        assert "unreadable dirs" in table
+        assert "locked" in table
 
 
 # ---------------------------------------------------------------------------
