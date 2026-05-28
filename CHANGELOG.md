@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `inspect` subcommand: content-aware preview that layers L1 fields on top
+  of `probe`'s metadata — `page_count`, `is_text` / `is_scan`,
+  `text_density`, `has_form_fields`, `is_encrypted`, and an optional
+  `--snippet N` text preview. PDFs are inspected with PyMuPDF (a soft
+  dependency; install with `pip install 'llamaparse-cli[inspect]'`). Plain
+  text and markup files (`.txt`, `.md`, `.rst`, `.csv`, `.tsv`, `.html`,
+  `.json`, `.yaml`, ...) get inspected without any extra install. Spends
+  zero credits and never makes a network call — use it to route scans to
+  `agentic`, flag encrypted PDFs before upload, and sanity-check text
+  before paying for a batch run. Shares `--ext`, `--max-depth`,
+  `--max-files`, `--include-hidden`, `--supported-only`,
+  `--follow-symlinks`, `--json`, and `--output` with `probe`.
 - `probe` subcommand: recursively walks a target directory and reports
   per-file metadata (path, size, mtime, extension, mime type, whether the
   format is LlamaCloud-friendly) with a summary block at the end. Supports

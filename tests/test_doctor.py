@@ -71,6 +71,31 @@ class TestCheckSdk:
         assert "REST fallback" in (detail or "")
 
 
+class TestCheckPymupdf:
+    def test_warn_when_missing(self, monkeypatch):
+        """pymupdf is optional — its absence is a warning, not a failure."""
+        monkeypatch.setitem(sys.modules, "pymupdf", None)
+        status, headline, detail = _doctor.check_pymupdf()
+        assert status == _doctor._WARN
+        assert "not installed" in headline
+        # Points the user at the same extras install used everywhere else.
+        assert "[inspect]" in (detail or "")
+
+    def test_ok_when_present(self):
+        # PyMuPDF is installed in the inspect test environment.
+        pytest.importorskip("pymupdf")
+        status, headline, _ = _doctor.check_pymupdf()
+        assert status == _doctor._OK
+        assert "pymupdf" in headline
+
+    def test_included_in_run(self, monkeypatch, capsys):
+        """doctor's report includes a pymupdf line."""
+        monkeypatch.setenv("LLAMA_CLOUD_API_KEY", "llx-good")
+        _core.main(["doctor", "--offline"])
+        out = capsys.readouterr().out
+        assert "pymupdf" in out
+
+
 # ---------------------------------------------------------------------------
 # check_api_key
 # ---------------------------------------------------------------------------
