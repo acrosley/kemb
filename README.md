@@ -350,11 +350,20 @@ llamaparse-plugin/
 │   ├── llamaclassify/              — categorization with confidence
 │   └── llamasplit/                 — section splitting (v1 beta)
 ├── examples/                       — copy-pasteable schemas, rules, categories
+├── docs/llamacloud/                — local mirror of the entire LlamaCloud docs
+│                                     site (~900 pages) + sha256 manifest
+├── scripts/
+│   ├── fetch_docs.py               — refresh the mirror from upstream
+│   ├── check_docs_staleness.py     — compare local hashes against upstream
+│   └── docs_common.py              — shared helpers
 ├── tests/                          — pytest suite
 ├── CHANGELOG.md                    — version history
 ├── CONTRIBUTING.md                 — dev setup and PR guide
 └── README.md
 ```
+
+The docs mirror has its own [README](./docs/llamacloud/README.md) covering
+scope, layout, and the weekly staleness CI job that watches for upstream drift.
 
 Each skill is independent and lazy-loaded: Claude pulls in only the SKILL.md
 whose description matches the user's request, so feature context stays out of

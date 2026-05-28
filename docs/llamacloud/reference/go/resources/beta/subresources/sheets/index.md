@@ -1,0 +1,1461 @@
+# Sheets
+
+## Create Spreadsheet Job
+
+`client.Beta.Sheets.New(ctx, params) (*SheetsJob, error)`
+
+**post** `/api/v1/beta/sheets/jobs`
+
+Create a spreadsheet parsing job.
+Experimental: This endpoint is not yet ready for production use and is subject to change at any time.
+
+### Parameters
+
+- `params BetaSheetNewParams`
+
+  - `FileID param.Field[string]`
+
+    Body param: The ID of the file to parse
+
+  - `OrganizationID param.Field[string]`
+
+    Query param
+
+  - `ProjectID param.Field[string]`
+
+    Query param
+
+  - `Config param.Field[SheetsParsingConfig]`
+
+    Body param: Configuration for the parsing job
+
+### Returns
+
+- `type SheetsJob struct{…}`
+
+  A spreadsheet parsing job
+
+  - `ID string`
+
+    The ID of the job
+
+  - `Config SheetsParsingConfig`
+
+    Configuration for the parsing job
+
+    - `ExtractionRange string`
+
+      A1 notation of the range to extract a single region from. If None, the entire sheet is used.
+
+    - `FlattenHierarchicalTables bool`
+
+      Return a flattened dataframe when a detected table is recognized as hierarchical.
+
+    - `GenerateAdditionalMetadata bool`
+
+      Whether to generate additional metadata (title, description) for each extracted region.
+
+    - `IncludeHiddenCells bool`
+
+      Whether to include hidden cells when extracting regions from the spreadsheet.
+
+    - `SheetNames []string`
+
+      The names of the sheets to extract regions from. If empty, all sheets will be processed.
+
+    - `Specialization string`
+
+      Optional specialization mode for domain-specific extraction. Supported values: 'financial-standard', 'financial-enhanced', 'financial-precise'. Default None uses the general-purpose pipeline.
+
+    - `TableMergeSensitivity SheetsParsingConfigTableMergeSensitivity`
+
+      Influences how likely similar-looking regions are merged into a single table. Useful for spreadsheets that either have sparse tables (strong merging) or many distinct tables close together (weak merging).
+
+      - `const SheetsParsingConfigTableMergeSensitivityStrong SheetsParsingConfigTableMergeSensitivity = "strong"`
+
+      - `const SheetsParsingConfigTableMergeSensitivityWeak SheetsParsingConfigTableMergeSensitivity = "weak"`
+
+    - `UseExperimentalProcessing bool`
+
+      Enables experimental processing. Accuracy may be impacted.
+
+  - `CreatedAt string`
+
+    When the job was created
+
+  - `FileID string`
+
+    The ID of the input file
+
+  - `ProjectID string`
+
+    The ID of the project
+
+  - `Status StatusEnum`
+
+    The status of the parsing job
+
+    - `const StatusEnumPending StatusEnum = "PENDING"`
+
+    - `const StatusEnumSuccess StatusEnum = "SUCCESS"`
+
+    - `const StatusEnumError StatusEnum = "ERROR"`
+
+    - `const StatusEnumPartialSuccess StatusEnum = "PARTIAL_SUCCESS"`
+
+    - `const StatusEnumCancelled StatusEnum = "CANCELLED"`
+
+  - `UpdatedAt string`
+
+    When the job was last updated
+
+  - `UserID string`
+
+    The ID of the user
+
+  - `Errors []string`
+
+    Any errors encountered
+
+  - `File File`
+
+    Schema for a file.
+
+    - `ID string`
+
+      Unique identifier
+
+    - `Name string`
+
+    - `ProjectID string`
+
+      The ID of the project that the file belongs to
+
+    - `CreatedAt Time`
+
+      Creation datetime
+
+    - `DataSourceID string`
+
+      The ID of the data source that the file belongs to
+
+    - `ExpiresAt Time`
+
+      The expiration date for the file. Files past this date can be deleted.
+
+    - `ExternalFileID string`
+
+      The ID of the file in the external system
+
+    - `FileSize int64`
+
+      Size of the file in bytes
+
+    - `FileType string`
+
+      File type (e.g. pdf, docx, etc.)
+
+    - `LastModifiedAt Time`
+
+      The last modified time of the file
+
+    - `PermissionInfo map[string, FilePermissionInfoUnion]`
+
+      Permission information for the file
+
+      - `type FilePermissionInfoMap map[string, any]`
+
+      - `type FilePermissionInfoArray []any`
+
+      - `string`
+
+      - `float64`
+
+      - `bool`
+
+    - `Purpose string`
+
+      The intended purpose of the file (e.g., 'user_data', 'parse', 'extract', 'split', 'classify')
+
+    - `ResourceInfo map[string, FileResourceInfoUnion]`
+
+      Resource information for the file
+
+      - `type FileResourceInfoMap map[string, any]`
+
+      - `type FileResourceInfoArray []any`
+
+      - `string`
+
+      - `float64`
+
+      - `bool`
+
+    - `UpdatedAt Time`
+
+      Update datetime
+
+  - `Regions []SheetsJobRegion`
+
+    All extracted regions (populated when job is complete)
+
+    - `Location string`
+
+      Location of the region in the spreadsheet
+
+    - `RegionType string`
+
+      Type of the extracted region
+
+    - `SheetName string`
+
+      Worksheet name where region was found
+
+    - `Description string`
+
+      Generated description for the region
+
+    - `RegionID string`
+
+      Unique identifier for this region within the file
+
+    - `Title string`
+
+      Generated title for the region
+
+  - `Success bool`
+
+    Whether the job completed successfully
+
+  - `WorksheetMetadata []SheetsJobWorksheetMetadata`
+
+    Metadata for each processed worksheet (populated when job is complete)
+
+    - `SheetName string`
+
+      Name of the worksheet
+
+    - `Description string`
+
+      Generated description of the worksheet
+
+    - `Title string`
+
+      Generated title for the worksheet
+
+### Example
+
+```go
+package main
+
+import (
+  "context"
+  "fmt"
+
+  "github.com/stainless-sdks/llamacloud-prod-go"
+  "github.com/stainless-sdks/llamacloud-prod-go/option"
+)
+
+func main() {
+  client := llamacloudprod.NewClient(
+    option.WithAPIKey("My API Key"),
+  )
+  sheetsJob, err := client.Beta.Sheets.New(context.TODO(), llamacloudprod.BetaSheetNewParams{
+    FileID: "182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e",
+  })
+  if err != nil {
+    panic(err.Error())
+  }
+  fmt.Printf("%+v\n", sheetsJob.ID)
+}
+```
+
+#### Response
+
+```json
+{
+  "id": "id",
+  "config": {
+    "extraction_range": "extraction_range",
+    "flatten_hierarchical_tables": true,
+    "generate_additional_metadata": true,
+    "include_hidden_cells": true,
+    "sheet_names": [
+      "string"
+    ],
+    "specialization": "specialization",
+    "table_merge_sensitivity": "strong",
+    "use_experimental_processing": true
+  },
+  "created_at": "created_at",
+  "file_id": "182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e",
+  "project_id": "182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e",
+  "status": "PENDING",
+  "updated_at": "updated_at",
+  "user_id": "user_id",
+  "errors": [
+    "string"
+  ],
+  "file": {
+    "id": "182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e",
+    "name": "x",
+    "project_id": "182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e",
+    "created_at": "2019-12-27T18:11:19.117Z",
+    "data_source_id": "182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e",
+    "expires_at": "2019-12-27T18:11:19.117Z",
+    "external_file_id": "external_file_id",
+    "file_size": 0,
+    "file_type": "x",
+    "last_modified_at": "2019-12-27T18:11:19.117Z",
+    "permission_info": {
+      "foo": {
+        "foo": "bar"
+      }
+    },
+    "purpose": "purpose",
+    "resource_info": {
+      "foo": {
+        "foo": "bar"
+      }
+    },
+    "updated_at": "2019-12-27T18:11:19.117Z"
+  },
+  "regions": [
+    {
+      "location": "location",
+      "region_type": "region_type",
+      "sheet_name": "sheet_name",
+      "description": "description",
+      "region_id": "region_id",
+      "title": "title"
+    }
+  ],
+  "success": true,
+  "worksheet_metadata": [
+    {
+      "sheet_name": "sheet_name",
+      "description": "description",
+      "title": "title"
+    }
+  ]
+}
+```
+
+## List Spreadsheet Jobs
+
+`client.Beta.Sheets.List(ctx, query) (*PaginatedCursor[SheetsJob], error)`
+
+**get** `/api/v1/beta/sheets/jobs`
+
+List spreadsheet parsing jobs.
+Experimental: This endpoint is not yet ready for production use and is subject to change at any time.
+
+### Parameters
+
+- `query BetaSheetListParams`
+
+  - `CreatedAtOnOrAfter param.Field[Time]`
+
+    Include items created at or after this timestamp (inclusive)
+
+  - `CreatedAtOnOrBefore param.Field[Time]`
+
+    Include items created at or before this timestamp (inclusive)
+
+  - `IncludeResults param.Field[bool]`
+
+  - `JobIDs param.Field[[]string]`
+
+    Filter by specific job IDs
+
+  - `OrganizationID param.Field[string]`
+
+  - `PageSize param.Field[int64]`
+
+  - `PageToken param.Field[string]`
+
+  - `ProjectID param.Field[string]`
+
+  - `Status param.Field[StatusEnum]`
+
+    Filter by job status
+
+### Returns
+
+- `type SheetsJob struct{…}`
+
+  A spreadsheet parsing job
+
+  - `ID string`
+
+    The ID of the job
+
+  - `Config SheetsParsingConfig`
+
+    Configuration for the parsing job
+
+    - `ExtractionRange string`
+
+      A1 notation of the range to extract a single region from. If None, the entire sheet is used.
+
+    - `FlattenHierarchicalTables bool`
+
+      Return a flattened dataframe when a detected table is recognized as hierarchical.
+
+    - `GenerateAdditionalMetadata bool`
+
+      Whether to generate additional metadata (title, description) for each extracted region.
+
+    - `IncludeHiddenCells bool`
+
+      Whether to include hidden cells when extracting regions from the spreadsheet.
+
+    - `SheetNames []string`
+
+      The names of the sheets to extract regions from. If empty, all sheets will be processed.
+
+    - `Specialization string`
+
+      Optional specialization mode for domain-specific extraction. Supported values: 'financial-standard', 'financial-enhanced', 'financial-precise'. Default None uses the general-purpose pipeline.
+
+    - `TableMergeSensitivity SheetsParsingConfigTableMergeSensitivity`
+
+      Influences how likely similar-looking regions are merged into a single table. Useful for spreadsheets that either have sparse tables (strong merging) or many distinct tables close together (weak merging).
+
+      - `const SheetsParsingConfigTableMergeSensitivityStrong SheetsParsingConfigTableMergeSensitivity = "strong"`
+
+      - `const SheetsParsingConfigTableMergeSensitivityWeak SheetsParsingConfigTableMergeSensitivity = "weak"`
+
+    - `UseExperimentalProcessing bool`
+
+      Enables experimental processing. Accuracy may be impacted.
+
+  - `CreatedAt string`
+
+    When the job was created
+
+  - `FileID string`
+
+    The ID of the input file
+
+  - `ProjectID string`
+
+    The ID of the project
+
+  - `Status StatusEnum`
+
+    The status of the parsing job
+
+    - `const StatusEnumPending StatusEnum = "PENDING"`
+
+    - `const StatusEnumSuccess StatusEnum = "SUCCESS"`
+
+    - `const StatusEnumError StatusEnum = "ERROR"`
+
+    - `const StatusEnumPartialSuccess StatusEnum = "PARTIAL_SUCCESS"`
+
+    - `const StatusEnumCancelled StatusEnum = "CANCELLED"`
+
+  - `UpdatedAt string`
+
+    When the job was last updated
+
+  - `UserID string`
+
+    The ID of the user
+
+  - `Errors []string`
+
+    Any errors encountered
+
+  - `File File`
+
+    Schema for a file.
+
+    - `ID string`
+
+      Unique identifier
+
+    - `Name string`
+
+    - `ProjectID string`
+
+      The ID of the project that the file belongs to
+
+    - `CreatedAt Time`
+
+      Creation datetime
+
+    - `DataSourceID string`
+
+      The ID of the data source that the file belongs to
+
+    - `ExpiresAt Time`
+
+      The expiration date for the file. Files past this date can be deleted.
+
+    - `ExternalFileID string`
+
+      The ID of the file in the external system
+
+    - `FileSize int64`
+
+      Size of the file in bytes
+
+    - `FileType string`
+
+      File type (e.g. pdf, docx, etc.)
+
+    - `LastModifiedAt Time`
+
+      The last modified time of the file
+
+    - `PermissionInfo map[string, FilePermissionInfoUnion]`
+
+      Permission information for the file
+
+      - `type FilePermissionInfoMap map[string, any]`
+
+      - `type FilePermissionInfoArray []any`
+
+      - `string`
+
+      - `float64`
+
+      - `bool`
+
+    - `Purpose string`
+
+      The intended purpose of the file (e.g., 'user_data', 'parse', 'extract', 'split', 'classify')
+
+    - `ResourceInfo map[string, FileResourceInfoUnion]`
+
+      Resource information for the file
+
+      - `type FileResourceInfoMap map[string, any]`
+
+      - `type FileResourceInfoArray []any`
+
+      - `string`
+
+      - `float64`
+
+      - `bool`
+
+    - `UpdatedAt Time`
+
+      Update datetime
+
+  - `Regions []SheetsJobRegion`
+
+    All extracted regions (populated when job is complete)
+
+    - `Location string`
+
+      Location of the region in the spreadsheet
+
+    - `RegionType string`
+
+      Type of the extracted region
+
+    - `SheetName string`
+
+      Worksheet name where region was found
+
+    - `Description string`
+
+      Generated description for the region
+
+    - `RegionID string`
+
+      Unique identifier for this region within the file
+
+    - `Title string`
+
+      Generated title for the region
+
+  - `Success bool`
+
+    Whether the job completed successfully
+
+  - `WorksheetMetadata []SheetsJobWorksheetMetadata`
+
+    Metadata for each processed worksheet (populated when job is complete)
+
+    - `SheetName string`
+
+      Name of the worksheet
+
+    - `Description string`
+
+      Generated description of the worksheet
+
+    - `Title string`
+
+      Generated title for the worksheet
+
+### Example
+
+```go
+package main
+
+import (
+  "context"
+  "fmt"
+
+  "github.com/stainless-sdks/llamacloud-prod-go"
+  "github.com/stainless-sdks/llamacloud-prod-go/option"
+)
+
+func main() {
+  client := llamacloudprod.NewClient(
+    option.WithAPIKey("My API Key"),
+  )
+  page, err := client.Beta.Sheets.List(context.TODO(), llamacloudprod.BetaSheetListParams{
+
+  })
+  if err != nil {
+    panic(err.Error())
+  }
+  fmt.Printf("%+v\n", page)
+}
+```
+
+#### Response
+
+```json
+{
+  "items": [
+    {
+      "id": "id",
+      "config": {
+        "extraction_range": "extraction_range",
+        "flatten_hierarchical_tables": true,
+        "generate_additional_metadata": true,
+        "include_hidden_cells": true,
+        "sheet_names": [
+          "string"
+        ],
+        "specialization": "specialization",
+        "table_merge_sensitivity": "strong",
+        "use_experimental_processing": true
+      },
+      "created_at": "created_at",
+      "file_id": "182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e",
+      "project_id": "182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e",
+      "status": "PENDING",
+      "updated_at": "updated_at",
+      "user_id": "user_id",
+      "errors": [
+        "string"
+      ],
+      "file": {
+        "id": "182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e",
+        "name": "x",
+        "project_id": "182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e",
+        "created_at": "2019-12-27T18:11:19.117Z",
+        "data_source_id": "182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e",
+        "expires_at": "2019-12-27T18:11:19.117Z",
+        "external_file_id": "external_file_id",
+        "file_size": 0,
+        "file_type": "x",
+        "last_modified_at": "2019-12-27T18:11:19.117Z",
+        "permission_info": {
+          "foo": {
+            "foo": "bar"
+          }
+        },
+        "purpose": "purpose",
+        "resource_info": {
+          "foo": {
+            "foo": "bar"
+          }
+        },
+        "updated_at": "2019-12-27T18:11:19.117Z"
+      },
+      "regions": [
+        {
+          "location": "location",
+          "region_type": "region_type",
+          "sheet_name": "sheet_name",
+          "description": "description",
+          "region_id": "region_id",
+          "title": "title"
+        }
+      ],
+      "success": true,
+      "worksheet_metadata": [
+        {
+          "sheet_name": "sheet_name",
+          "description": "description",
+          "title": "title"
+        }
+      ]
+    }
+  ],
+  "next_page_token": "next_page_token",
+  "total_size": 0
+}
+```
+
+## Get Spreadsheet Job
+
+`client.Beta.Sheets.Get(ctx, spreadsheetJobID, query) (*SheetsJob, error)`
+
+**get** `/api/v1/beta/sheets/jobs/{spreadsheet_job_id}`
+
+Get a spreadsheet parsing job.
+
+When include_results=True (default), the response will include extracted regions and results
+if the job is complete, eliminating the need for a separate /results call.
+
+Experimental: This endpoint is not yet ready for production use and is subject to change at any time.
+
+### Parameters
+
+- `spreadsheetJobID string`
+
+- `query BetaSheetGetParams`
+
+  - `IncludeResults param.Field[bool]`
+
+  - `OrganizationID param.Field[string]`
+
+  - `ProjectID param.Field[string]`
+
+### Returns
+
+- `type SheetsJob struct{…}`
+
+  A spreadsheet parsing job
+
+  - `ID string`
+
+    The ID of the job
+
+  - `Config SheetsParsingConfig`
+
+    Configuration for the parsing job
+
+    - `ExtractionRange string`
+
+      A1 notation of the range to extract a single region from. If None, the entire sheet is used.
+
+    - `FlattenHierarchicalTables bool`
+
+      Return a flattened dataframe when a detected table is recognized as hierarchical.
+
+    - `GenerateAdditionalMetadata bool`
+
+      Whether to generate additional metadata (title, description) for each extracted region.
+
+    - `IncludeHiddenCells bool`
+
+      Whether to include hidden cells when extracting regions from the spreadsheet.
+
+    - `SheetNames []string`
+
+      The names of the sheets to extract regions from. If empty, all sheets will be processed.
+
+    - `Specialization string`
+
+      Optional specialization mode for domain-specific extraction. Supported values: 'financial-standard', 'financial-enhanced', 'financial-precise'. Default None uses the general-purpose pipeline.
+
+    - `TableMergeSensitivity SheetsParsingConfigTableMergeSensitivity`
+
+      Influences how likely similar-looking regions are merged into a single table. Useful for spreadsheets that either have sparse tables (strong merging) or many distinct tables close together (weak merging).
+
+      - `const SheetsParsingConfigTableMergeSensitivityStrong SheetsParsingConfigTableMergeSensitivity = "strong"`
+
+      - `const SheetsParsingConfigTableMergeSensitivityWeak SheetsParsingConfigTableMergeSensitivity = "weak"`
+
+    - `UseExperimentalProcessing bool`
+
+      Enables experimental processing. Accuracy may be impacted.
+
+  - `CreatedAt string`
+
+    When the job was created
+
+  - `FileID string`
+
+    The ID of the input file
+
+  - `ProjectID string`
+
+    The ID of the project
+
+  - `Status StatusEnum`
+
+    The status of the parsing job
+
+    - `const StatusEnumPending StatusEnum = "PENDING"`
+
+    - `const StatusEnumSuccess StatusEnum = "SUCCESS"`
+
+    - `const StatusEnumError StatusEnum = "ERROR"`
+
+    - `const StatusEnumPartialSuccess StatusEnum = "PARTIAL_SUCCESS"`
+
+    - `const StatusEnumCancelled StatusEnum = "CANCELLED"`
+
+  - `UpdatedAt string`
+
+    When the job was last updated
+
+  - `UserID string`
+
+    The ID of the user
+
+  - `Errors []string`
+
+    Any errors encountered
+
+  - `File File`
+
+    Schema for a file.
+
+    - `ID string`
+
+      Unique identifier
+
+    - `Name string`
+
+    - `ProjectID string`
+
+      The ID of the project that the file belongs to
+
+    - `CreatedAt Time`
+
+      Creation datetime
+
+    - `DataSourceID string`
+
+      The ID of the data source that the file belongs to
+
+    - `ExpiresAt Time`
+
+      The expiration date for the file. Files past this date can be deleted.
+
+    - `ExternalFileID string`
+
+      The ID of the file in the external system
+
+    - `FileSize int64`
+
+      Size of the file in bytes
+
+    - `FileType string`
+
+      File type (e.g. pdf, docx, etc.)
+
+    - `LastModifiedAt Time`
+
+      The last modified time of the file
+
+    - `PermissionInfo map[string, FilePermissionInfoUnion]`
+
+      Permission information for the file
+
+      - `type FilePermissionInfoMap map[string, any]`
+
+      - `type FilePermissionInfoArray []any`
+
+      - `string`
+
+      - `float64`
+
+      - `bool`
+
+    - `Purpose string`
+
+      The intended purpose of the file (e.g., 'user_data', 'parse', 'extract', 'split', 'classify')
+
+    - `ResourceInfo map[string, FileResourceInfoUnion]`
+
+      Resource information for the file
+
+      - `type FileResourceInfoMap map[string, any]`
+
+      - `type FileResourceInfoArray []any`
+
+      - `string`
+
+      - `float64`
+
+      - `bool`
+
+    - `UpdatedAt Time`
+
+      Update datetime
+
+  - `Regions []SheetsJobRegion`
+
+    All extracted regions (populated when job is complete)
+
+    - `Location string`
+
+      Location of the region in the spreadsheet
+
+    - `RegionType string`
+
+      Type of the extracted region
+
+    - `SheetName string`
+
+      Worksheet name where region was found
+
+    - `Description string`
+
+      Generated description for the region
+
+    - `RegionID string`
+
+      Unique identifier for this region within the file
+
+    - `Title string`
+
+      Generated title for the region
+
+  - `Success bool`
+
+    Whether the job completed successfully
+
+  - `WorksheetMetadata []SheetsJobWorksheetMetadata`
+
+    Metadata for each processed worksheet (populated when job is complete)
+
+    - `SheetName string`
+
+      Name of the worksheet
+
+    - `Description string`
+
+      Generated description of the worksheet
+
+    - `Title string`
+
+      Generated title for the worksheet
+
+### Example
+
+```go
+package main
+
+import (
+  "context"
+  "fmt"
+
+  "github.com/stainless-sdks/llamacloud-prod-go"
+  "github.com/stainless-sdks/llamacloud-prod-go/option"
+)
+
+func main() {
+  client := llamacloudprod.NewClient(
+    option.WithAPIKey("My API Key"),
+  )
+  sheetsJob, err := client.Beta.Sheets.Get(
+    context.TODO(),
+    "spreadsheet_job_id",
+    llamacloudprod.BetaSheetGetParams{
+
+    },
+  )
+  if err != nil {
+    panic(err.Error())
+  }
+  fmt.Printf("%+v\n", sheetsJob.ID)
+}
+```
+
+#### Response
+
+```json
+{
+  "id": "id",
+  "config": {
+    "extraction_range": "extraction_range",
+    "flatten_hierarchical_tables": true,
+    "generate_additional_metadata": true,
+    "include_hidden_cells": true,
+    "sheet_names": [
+      "string"
+    ],
+    "specialization": "specialization",
+    "table_merge_sensitivity": "strong",
+    "use_experimental_processing": true
+  },
+  "created_at": "created_at",
+  "file_id": "182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e",
+  "project_id": "182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e",
+  "status": "PENDING",
+  "updated_at": "updated_at",
+  "user_id": "user_id",
+  "errors": [
+    "string"
+  ],
+  "file": {
+    "id": "182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e",
+    "name": "x",
+    "project_id": "182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e",
+    "created_at": "2019-12-27T18:11:19.117Z",
+    "data_source_id": "182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e",
+    "expires_at": "2019-12-27T18:11:19.117Z",
+    "external_file_id": "external_file_id",
+    "file_size": 0,
+    "file_type": "x",
+    "last_modified_at": "2019-12-27T18:11:19.117Z",
+    "permission_info": {
+      "foo": {
+        "foo": "bar"
+      }
+    },
+    "purpose": "purpose",
+    "resource_info": {
+      "foo": {
+        "foo": "bar"
+      }
+    },
+    "updated_at": "2019-12-27T18:11:19.117Z"
+  },
+  "regions": [
+    {
+      "location": "location",
+      "region_type": "region_type",
+      "sheet_name": "sheet_name",
+      "description": "description",
+      "region_id": "region_id",
+      "title": "title"
+    }
+  ],
+  "success": true,
+  "worksheet_metadata": [
+    {
+      "sheet_name": "sheet_name",
+      "description": "description",
+      "title": "title"
+    }
+  ]
+}
+```
+
+## Get Result Region
+
+`client.Beta.Sheets.GetResultTable(ctx, regionType, params) (*PresignedURL, error)`
+
+**get** `/api/v1/beta/sheets/jobs/{spreadsheet_job_id}/regions/{region_id}/result/{region_type}`
+
+Generate a presigned URL to download a specific extracted region.
+Experimental: This endpoint is not yet ready for production use and is subject to change at any time.
+
+### Parameters
+
+- `regionType BetaSheetGetResultTableParamsRegionType`
+
+  - `const BetaSheetGetResultTableParamsRegionTypeTable BetaSheetGetResultTableParamsRegionType = "table"`
+
+  - `const BetaSheetGetResultTableParamsRegionTypeExtra BetaSheetGetResultTableParamsRegionType = "extra"`
+
+  - `const BetaSheetGetResultTableParamsRegionTypeCellMetadata BetaSheetGetResultTableParamsRegionType = "cell_metadata"`
+
+- `params BetaSheetGetResultTableParams`
+
+  - `SpreadsheetJobID param.Field[string]`
+
+    Path param
+
+  - `RegionID param.Field[string]`
+
+    Path param
+
+  - `ExpiresAtSeconds param.Field[int64]`
+
+    Query param
+
+  - `OrganizationID param.Field[string]`
+
+    Query param
+
+  - `ProjectID param.Field[string]`
+
+    Query param
+
+### Returns
+
+- `type PresignedURL struct{…}`
+
+  Schema for a presigned URL.
+
+  - `ExpiresAt Time`
+
+    The time at which the presigned URL expires
+
+  - `URL string`
+
+    A presigned URL for IO operations against a private file
+
+  - `FormFields map[string, string]`
+
+    Form fields for a presigned POST request
+
+### Example
+
+```go
+package main
+
+import (
+  "context"
+  "fmt"
+
+  "github.com/stainless-sdks/llamacloud-prod-go"
+  "github.com/stainless-sdks/llamacloud-prod-go/option"
+)
+
+func main() {
+  client := llamacloudprod.NewClient(
+    option.WithAPIKey("My API Key"),
+  )
+  presignedURL, err := client.Beta.Sheets.GetResultTable(
+    context.TODO(),
+    llamacloudprod.BetaSheetGetResultTableParamsRegionTypeTable,
+    llamacloudprod.BetaSheetGetResultTableParams{
+      SpreadsheetJobID: "spreadsheet_job_id",
+      RegionID: "region_id",
+    },
+  )
+  if err != nil {
+    panic(err.Error())
+  }
+  fmt.Printf("%+v\n", presignedURL.ExpiresAt)
+}
+```
+
+#### Response
+
+```json
+{
+  "expires_at": "2019-12-27T18:11:19.117Z",
+  "url": "https://example.com",
+  "form_fields": {
+    "foo": "string"
+  }
+}
+```
+
+## Delete Spreadsheet Job
+
+`client.Beta.Sheets.DeleteJob(ctx, spreadsheetJobID, body) (*BetaSheetDeleteJobResponse, error)`
+
+**delete** `/api/v1/beta/sheets/jobs/{spreadsheet_job_id}`
+
+Delete a spreadsheet parsing job and its associated data.
+Experimental: This endpoint is not yet ready for production use and is subject to change at any time.
+
+### Parameters
+
+- `spreadsheetJobID string`
+
+- `body BetaSheetDeleteJobParams`
+
+  - `OrganizationID param.Field[string]`
+
+  - `ProjectID param.Field[string]`
+
+### Returns
+
+- `type BetaSheetDeleteJobResponse interface{…}`
+
+### Example
+
+```go
+package main
+
+import (
+  "context"
+  "fmt"
+
+  "github.com/stainless-sdks/llamacloud-prod-go"
+  "github.com/stainless-sdks/llamacloud-prod-go/option"
+)
+
+func main() {
+  client := llamacloudprod.NewClient(
+    option.WithAPIKey("My API Key"),
+  )
+  response, err := client.Beta.Sheets.DeleteJob(
+    context.TODO(),
+    "spreadsheet_job_id",
+    llamacloudprod.BetaSheetDeleteJobParams{
+
+    },
+  )
+  if err != nil {
+    panic(err.Error())
+  }
+  fmt.Printf("%+v\n", response)
+}
+```
+
+#### Response
+
+```json
+{}
+```
+
+## Domain Types
+
+### Sheets Job
+
+- `type SheetsJob struct{…}`
+
+  A spreadsheet parsing job
+
+  - `ID string`
+
+    The ID of the job
+
+  - `Config SheetsParsingConfig`
+
+    Configuration for the parsing job
+
+    - `ExtractionRange string`
+
+      A1 notation of the range to extract a single region from. If None, the entire sheet is used.
+
+    - `FlattenHierarchicalTables bool`
+
+      Return a flattened dataframe when a detected table is recognized as hierarchical.
+
+    - `GenerateAdditionalMetadata bool`
+
+      Whether to generate additional metadata (title, description) for each extracted region.
+
+    - `IncludeHiddenCells bool`
+
+      Whether to include hidden cells when extracting regions from the spreadsheet.
+
+    - `SheetNames []string`
+
+      The names of the sheets to extract regions from. If empty, all sheets will be processed.
+
+    - `Specialization string`
+
+      Optional specialization mode for domain-specific extraction. Supported values: 'financial-standard', 'financial-enhanced', 'financial-precise'. Default None uses the general-purpose pipeline.
+
+    - `TableMergeSensitivity SheetsParsingConfigTableMergeSensitivity`
+
+      Influences how likely similar-looking regions are merged into a single table. Useful for spreadsheets that either have sparse tables (strong merging) or many distinct tables close together (weak merging).
+
+      - `const SheetsParsingConfigTableMergeSensitivityStrong SheetsParsingConfigTableMergeSensitivity = "strong"`
+
+      - `const SheetsParsingConfigTableMergeSensitivityWeak SheetsParsingConfigTableMergeSensitivity = "weak"`
+
+    - `UseExperimentalProcessing bool`
+
+      Enables experimental processing. Accuracy may be impacted.
+
+  - `CreatedAt string`
+
+    When the job was created
+
+  - `FileID string`
+
+    The ID of the input file
+
+  - `ProjectID string`
+
+    The ID of the project
+
+  - `Status StatusEnum`
+
+    The status of the parsing job
+
+    - `const StatusEnumPending StatusEnum = "PENDING"`
+
+    - `const StatusEnumSuccess StatusEnum = "SUCCESS"`
+
+    - `const StatusEnumError StatusEnum = "ERROR"`
+
+    - `const StatusEnumPartialSuccess StatusEnum = "PARTIAL_SUCCESS"`
+
+    - `const StatusEnumCancelled StatusEnum = "CANCELLED"`
+
+  - `UpdatedAt string`
+
+    When the job was last updated
+
+  - `UserID string`
+
+    The ID of the user
+
+  - `Errors []string`
+
+    Any errors encountered
+
+  - `File File`
+
+    Schema for a file.
+
+    - `ID string`
+
+      Unique identifier
+
+    - `Name string`
+
+    - `ProjectID string`
+
+      The ID of the project that the file belongs to
+
+    - `CreatedAt Time`
+
+      Creation datetime
+
+    - `DataSourceID string`
+
+      The ID of the data source that the file belongs to
+
+    - `ExpiresAt Time`
+
+      The expiration date for the file. Files past this date can be deleted.
+
+    - `ExternalFileID string`
+
+      The ID of the file in the external system
+
+    - `FileSize int64`
+
+      Size of the file in bytes
+
+    - `FileType string`
+
+      File type (e.g. pdf, docx, etc.)
+
+    - `LastModifiedAt Time`
+
+      The last modified time of the file
+
+    - `PermissionInfo map[string, FilePermissionInfoUnion]`
+
+      Permission information for the file
+
+      - `type FilePermissionInfoMap map[string, any]`
+
+      - `type FilePermissionInfoArray []any`
+
+      - `string`
+
+      - `float64`
+
+      - `bool`
+
+    - `Purpose string`
+
+      The intended purpose of the file (e.g., 'user_data', 'parse', 'extract', 'split', 'classify')
+
+    - `ResourceInfo map[string, FileResourceInfoUnion]`
+
+      Resource information for the file
+
+      - `type FileResourceInfoMap map[string, any]`
+
+      - `type FileResourceInfoArray []any`
+
+      - `string`
+
+      - `float64`
+
+      - `bool`
+
+    - `UpdatedAt Time`
+
+      Update datetime
+
+  - `Regions []SheetsJobRegion`
+
+    All extracted regions (populated when job is complete)
+
+    - `Location string`
+
+      Location of the region in the spreadsheet
+
+    - `RegionType string`
+
+      Type of the extracted region
+
+    - `SheetName string`
+
+      Worksheet name where region was found
+
+    - `Description string`
+
+      Generated description for the region
+
+    - `RegionID string`
+
+      Unique identifier for this region within the file
+
+    - `Title string`
+
+      Generated title for the region
+
+  - `Success bool`
+
+    Whether the job completed successfully
+
+  - `WorksheetMetadata []SheetsJobWorksheetMetadata`
+
+    Metadata for each processed worksheet (populated when job is complete)
+
+    - `SheetName string`
+
+      Name of the worksheet
+
+    - `Description string`
+
+      Generated description of the worksheet
+
+    - `Title string`
+
+      Generated title for the worksheet
+
+### Sheets Parsing Config
+
+- `type SheetsParsingConfig struct{…}`
+
+  Configuration for spreadsheet parsing and region extraction
+
+  - `ExtractionRange string`
+
+    A1 notation of the range to extract a single region from. If None, the entire sheet is used.
+
+  - `FlattenHierarchicalTables bool`
+
+    Return a flattened dataframe when a detected table is recognized as hierarchical.
+
+  - `GenerateAdditionalMetadata bool`
+
+    Whether to generate additional metadata (title, description) for each extracted region.
+
+  - `IncludeHiddenCells bool`
+
+    Whether to include hidden cells when extracting regions from the spreadsheet.
+
+  - `SheetNames []string`
+
+    The names of the sheets to extract regions from. If empty, all sheets will be processed.
+
+  - `Specialization string`
+
+    Optional specialization mode for domain-specific extraction. Supported values: 'financial-standard', 'financial-enhanced', 'financial-precise'. Default None uses the general-purpose pipeline.
+
+  - `TableMergeSensitivity SheetsParsingConfigTableMergeSensitivity`
+
+    Influences how likely similar-looking regions are merged into a single table. Useful for spreadsheets that either have sparse tables (strong merging) or many distinct tables close together (weak merging).
+
+    - `const SheetsParsingConfigTableMergeSensitivityStrong SheetsParsingConfigTableMergeSensitivity = "strong"`
+
+    - `const SheetsParsingConfigTableMergeSensitivityWeak SheetsParsingConfigTableMergeSensitivity = "weak"`
+
+  - `UseExperimentalProcessing bool`
+
+    Enables experimental processing. Accuracy may be impacted.
