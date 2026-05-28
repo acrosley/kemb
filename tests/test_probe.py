@@ -302,6 +302,23 @@ class TestSummarize:
 
 
 # ---------------------------------------------------------------------------
+# Type contract — keep the TypedDicts in lockstep with what the code emits
+# ---------------------------------------------------------------------------
+
+
+class TestTypeContract:
+    def test_file_info_keys_match_describe_file(self, tmp_path: Path):
+        p = tmp_path / "a.pdf"
+        p.write_bytes(b"%PDF-1.4")
+        info = _probe._describe_file(p, tmp_path)
+        assert set(info.keys()) == set(_probe.FileInfo.__annotations__)
+
+    def test_summary_keys_match_typed_shape(self):
+        summary = _probe.summarize([])
+        assert set(summary.keys()) == set(_probe.ProbeSummary.__annotations__)
+
+
+# ---------------------------------------------------------------------------
 # os.walk error surfacing
 # ---------------------------------------------------------------------------
 
