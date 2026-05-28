@@ -7,6 +7,7 @@ Subcommands:
     classify  — categorize a document into one of a defined set of classes
     split     — break a document into sections (by category or strategy)
     probe     — recursively scan a directory and report file metadata
+    inspect   — content-aware preview (page counts, scans, snippets)
     doctor    — preflight checks (Python, deps, API key, reachability)
 
 Backward compatible: `llamaparse ./file.pdf [--tier ...]` (no subcommand) still
@@ -21,14 +22,14 @@ import argparse
 import sys
 from importlib.metadata import PackageNotFoundError, version as _pkg_version
 
-from . import _classify, _doctor, _extract, _parse, _probe, _split
+from . import _classify, _doctor, _extract, _inspect, _parse, _probe, _split
 
 try:
     __version__ = _pkg_version("llamaparse-cli")
 except PackageNotFoundError:
     __version__ = "0.0.0+unknown"
 
-SUBCOMMANDS = ("parse", "extract", "classify", "split", "probe", "doctor")
+SUBCOMMANDS = ("parse", "extract", "classify", "split", "probe", "inspect", "doctor")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -45,6 +46,7 @@ def build_parser() -> argparse.ArgumentParser:
             "  llamaparse classify ./doc.pdf --rules @rules.json\n"
             "  llamaparse split ./report.pdf --categories @cats.json\n"
             "  llamaparse probe ./inbox                           # scan dir metadata\n"
+            "  llamaparse inspect ./inbox --snippet 200           # peek at content\n"
             "  llamaparse parse ./contract.pdf --dry-run          # validate without uploading\n"
             "  llamaparse doctor                                  # preflight checks\n"
             "\n"
@@ -64,6 +66,7 @@ def build_parser() -> argparse.ArgumentParser:
     _classify.add_subparser(subparsers)
     _split.add_subparser(subparsers)
     _probe.add_subparser(subparsers)
+    _inspect.add_subparser(subparsers)
     _doctor.add_subparser(subparsers)
     return p
 

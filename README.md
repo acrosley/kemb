@@ -101,6 +101,7 @@ llamaparse extract   --help
 llamaparse classify  --help
 llamaparse split     --help
 llamaparse probe     --help                    # scan a directory (zero credits)
+llamaparse inspect   --help                    # content-aware preview (zero credits)
 llamaparse doctor                              # preflight checks (zero credits)
 ```
 
@@ -175,6 +176,29 @@ mtime, extension, mime type, and whether LlamaCloud is likely to accept the
 format. It never makes a network call — use it to preview a batch before
 running `parse` / `extract` / `classify` / `split` over a directory. Hidden
 files and directories are skipped unless `--include-hidden` is passed.
+
+### inspect — content-aware preview (zero credits)
+
+```bash
+llamaparse inspect ./inbox                            # human-readable table
+llamaparse inspect ./inbox/report.pdf                 # single file
+llamaparse inspect ./inbox --snippet 200              # include 200-char snippet
+llamaparse inspect ./inbox --ext pdf --json           # machine-readable
+llamaparse inspect ./inbox --supported-only           # only LlamaCloud-friendly files
+```
+
+Where `probe` answers "what files are here?", `inspect` answers "what are
+these files actually like?" — page counts, scan-vs-text PDFs, encryption
+status, AcroForm fields, optional text snippets. Use it to plan a parse
+run: route scanned PDFs to the `agentic` tier for OCR, flag encrypted ones
+that need a password before upload, and confirm text snippets look right
+before spending credits. Like `probe`, it makes zero network calls.
+
+PDF inspection uses PyMuPDF as a **soft dependency** — install it with
+`pip install pymupdf` (or `pip install 'llamaparse-cli[inspect]'`). Without
+it, PDFs still appear in the report but with a "pymupdf not installed"
+note instead of page-count / scan / form-field details. Non-PDF formats
+(text, markup) work without any extra install.
 
 ### --dry-run — preview a job without spending credits
 
@@ -340,6 +364,7 @@ llamaparse-plugin/
 │   ├── _classify.py                — LlamaClassify v2
 │   ├── _split.py                   — LlamaSplit v1 beta
 │   ├── _probe.py                   — recursive directory metadata scan (local-only)
+│   ├── _inspect.py                 — content-aware preview / PDF L1 (local-only)
 │   └── _doctor.py                  — preflight checks (local-only)
 ├── skills/
 │   ├── llamaparse/                 — parse → markdown/text

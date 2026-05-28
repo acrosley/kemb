@@ -41,6 +41,13 @@ dependencies = [
 test = [
     "pytest>=7",
     "requests-mock>=1.11",
+    "pymupdf>=1.23",
+]
+inspect = [
+    # Enables `llamaparse inspect` to peek inside PDFs (page count, scan
+    # detection, snippets). Without it the inspector still runs but PDF
+    # rows fall back to a "pymupdf not installed" note.
+    "pymupdf>=1.23",
 ]
 
 [project.urls]
