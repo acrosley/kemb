@@ -18,8 +18,8 @@ import argparse
 import json
 import mimetypes
 import os
+import stat
 import sys
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -163,8 +163,30 @@ def _iso_mtime(ts):
         return "?"
 
 
-def _is_hidden(name):
-    return name.startswith(".")
+# On Windows, hidden files are marked by an NTFS attribute bit rather than a
+# leading dot (Thumbs.db, desktop.ini, anything `attrib +h`'d via Explorer).
+# Falls back to the POSIX dot convention everywhere; the attribute check is
+# additive so a dotfile on Windows is still treated as hidden.
+_WINDOWS_HIDDEN_BIT = getattr(stat, "FILE_ATTRIBUTE_HIDDEN", 0x2)
+
+
+def _is_hidden(path):
+    """Return True if ``path`` is hidden by POSIX or Windows convention.
+
+    Accepts either a bare name (str) or a Path. The Windows attribute check
+    requires a real path and is skipped when only a name is supplied — callers
+    that want full cross-platform behavior should pass a Path.
+    """
+    name = path.name if isinstance(path, Path) else str(path)
+    if name.startswith("."):
+        return True
+    if os.name == "nt" and isinstance(path, Path):
+        try:
+            attrs = path.stat().st_file_attributes
+        except (OSError, AttributeError):
+            return False
+        return bool(attrs & _WINDOWS_HIDDEN_BIT)
+    return False
 
 
 def _passes_filters(info, *, extensions, supported_only):
@@ -194,6 +216,14 @@ def scan_directory(
 
     Files are emitted in walk order. The caller decides how to display or
     aggregate — see `run()` for the table/JSON renderers.
+
+    Two sentinel shapes may also be yielded so callers can surface them:
+      - ``{"_truncated": True, "limit": N}`` — once, at the end, if --max-files
+        was reached.
+      - ``{"_walk_error": {"path": str, "error": str}}`` — once per directory
+        os.walk could not enter (permission denied, race-deleted, etc.). These
+        are reported rather than silently dropped so an inventory the user
+        believes is complete cannot quietly omit an unreadable subtree.
     """
     target = Path(target)
     if not target.exists():
@@ -203,7 +233,7 @@ def scan_directory(
         # Treat a single-file target as a one-entry scan, but apply the same
         # --ext / --supported-only / hidden filters the directory walk uses so
         # `probe a.txt --ext pdf` and `probe ./dir --ext pdf` agree on `a.txt`.
-        if not include_hidden and _is_hidden(target.name):
+        if not include_hidden and _is_hidden(target):
             return
         info = _describe_file(target, target.parent)
         if _passes_filters(info, extensions=extensions, supported_only=supported_only):
@@ -217,12 +247,26 @@ def scan_directory(
     emitted = 0
     truncated = False
 
-    for root, dirs, files in os.walk(target, followlinks=follow_symlinks):
+    # os.walk defaults to onerror=None, which silently ignores scandir errors
+    # (PermissionError, a directory race-deleted mid-walk, etc.). Collect them
+    # so they can be reported instead of vanishing from the inventory.
+    walk_errors = []
+
+    def _on_walk_error(exc):
+        walk_errors.append({
+            "path": getattr(exc, "filename", None) or str(target),
+            "error": f"{type(exc).__name__}: {exc}",
+        })
+
+    for root, dirs, files in os.walk(
+        target, followlinks=follow_symlinks, onerror=_on_walk_error
+    ):
         root_path = Path(root)
 
         if not include_hidden:
             # Prune hidden directories in place so os.walk skips them entirely.
-            dirs[:] = [d for d in dirs if not _is_hidden(d)]
+            # Pass the full Path so the Windows attribute check sees the inode.
+            dirs[:] = [d for d in dirs if not _is_hidden(root_path / d)]
 
         if max_depth is not None:
             depth = len(root_path.parts) - base_depth
@@ -235,7 +279,7 @@ def scan_directory(
         files.sort()
 
         for name in files:
-            if not include_hidden and _is_hidden(name):
+            if not include_hidden and _is_hidden(root_path / name):
                 continue
 
             info = _describe_file(root_path / name, target)
@@ -252,6 +296,10 @@ def scan_directory(
                 break
         if truncated:
             break
+
+    # Surface any directories os.walk could not enter, after the file stream.
+    for walk_error in walk_errors:
+        yield {"_walk_error": walk_error}
 
     if truncated:
         # Signal truncation via a final sentinel dict the renderer can detect.
@@ -306,12 +354,16 @@ def summarize(entries):
     unreadable = 0
     truncated = False
     truncated_limit = None
+    walk_errors = []
     by_ext = {}
 
     for entry in entries:
         if entry.get("_truncated"):
             truncated = True
             truncated_limit = entry.get("limit")
+            continue
+        if entry.get("_walk_error"):
+            walk_errors.append(entry["_walk_error"])
             continue
         total_files += 1
         total_bytes += entry["size"]
@@ -335,6 +387,7 @@ def summarize(entries):
         "unreadable": unreadable,
         "truncated": truncated,
         "truncated_limit": truncated_limit,
+        "walk_errors": walk_errors,
         "by_extension": by_ext,
     }
 
@@ -406,6 +459,11 @@ def _summary_block(summary):
             f"  note: truncated at --max-files={summary['truncated_limit']}; "
             f"raise the cap to see the rest."
         )
+    walk_errors = summary.get("walk_errors") or []
+    if walk_errors:
+        parts.append(f"  unreadable dirs : {len(walk_errors)}")
+        for we in walk_errors:
+            parts.append(f"    {we['path']}: {we['error']}")
     return "\n".join(parts)
 
 
@@ -436,7 +494,7 @@ def run(args):
     extensions = _normalize_extensions(args.ext)
 
     entries = []
-    truncated_marker = None
+    sentinels = []
     for item in scan_directory(
         args.target,
         extensions=extensions,
@@ -446,17 +504,13 @@ def run(args):
         supported_only=args.supported_only,
         follow_symlinks=args.follow_symlinks,
     ):
-        if item.get("_truncated"):
-            truncated_marker = item
+        if item.get("_truncated") or item.get("_walk_error"):
+            sentinels.append(item)
         else:
             entries.append(item)
 
-    # Re-attach the truncation flag for summarize() to see.
-    if truncated_marker:
-        entries_for_summary = entries + [truncated_marker]
-    else:
-        entries_for_summary = entries
-    summary = summarize(entries_for_summary)
+    # summarize() reads the truncation + walk-error sentinels alongside files.
+    summary = summarize(entries + sentinels)
 
     if args.json:
         report = render_json(entries, summary)
