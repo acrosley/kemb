@@ -1,15 +1,10 @@
----
-name: llamaclassify
-description: Categorize a document into one of a defined set of categories using LlamaIndex's LlamaClassify v2 service. Use whenever the user names LlamaClassify or wants to label / categorize / route / triage a document (contract vs invoice vs other, complaint type, document type for a workflow) with a confidence score and a short reason.
----
-
-# LlamaClassify
+# Classify facet — LlamaClassify v2
 
 LlamaClassify is LlamaIndex's hosted document categorization service. Define categories as natural-language rules; it returns the matched category, a confidence score (0.0–1.0), and a brief reasoning string. This skill targets **LlamaClassify API v2** via the `llama-cloud` Python SDK.
 
 ## When to use
 
-Use it when the user wants to **assign one of N labels** to a document — routing intake forms, sorting contracts vs invoices, flagging complaint type, gating a downstream workflow on document type. If they want every field pulled out, use the `llamaextract` skill instead. If they want markdown, use `llamaparse`.
+Use it when the user wants to **assign one of N labels** to a document — routing intake forms, sorting contracts vs invoices, flagging complaint type, gating a downstream workflow on document type. If they want every field pulled out, use the `extract` facet (`extract.md`) instead. If they want markdown, use `parse` (`parse.md`).
 
 ## Setup
 
@@ -105,7 +100,7 @@ Status enum is uppercase: `PENDING|RUNNING|COMPLETED|FAILED`.
 
 ## What this skill does NOT do
 
-- Pull structured fields from the document — use `llamaextract`.
-- Split a document into sections — use `llamasplit`.
-- Convert to markdown — use `llamaparse`.
+- Pull structured fields from the document — use `extract` (`extract.md`).
+- Split a document into sections — use `split` (`split.md`).
+- Convert to markdown — use `parse` (`parse.md`).
 - Store API keys. Keys come from the environment, every run.

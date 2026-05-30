@@ -8,7 +8,7 @@ from unittest import mock
 import pytest
 import requests_mock
 
-from llamaparse_cli import _common
+from kemb import _common
 
 
 # ---------------------------------------------------------------------------

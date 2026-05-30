@@ -128,10 +128,10 @@ def add_subparser(subparsers):
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"
-            "  llamaparse probe ./inbox\n"
-            "  llamaparse probe ./inbox --ext pdf,docx\n"
-            "  llamaparse probe ./inbox --max-depth 2 --supported-only\n"
-            "  llamaparse probe ./inbox --json > inventory.json\n"
+            "  kemb probe ./inbox\n"
+            "  kemb probe ./inbox --ext pdf,docx\n"
+            "  kemb probe ./inbox --max-depth 2 --supported-only\n"
+            "  kemb probe ./inbox --json > inventory.json\n"
         ),
     )
     p.add_argument(

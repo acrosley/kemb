@@ -1,15 +1,10 @@
----
-name: llamaextract
-description: Extract structured JSON from a document against a JSON Schema, using LlamaIndex's LlamaExtract v2 service. Use whenever the user names LlamaExtract or asks to pull structured fields (invoice line items, contract terms, form data, named entities, etc.) out of a PDF or other document and wants the result as JSON or a schema-conformant object.
----
-
-# LlamaExtract
+# Extract facet — LlamaExtract v2
 
 LlamaExtract is LlamaIndex's hosted schema-driven extraction service. Give it a document and a JSON Schema; it returns a JSON object that conforms to the schema. This skill targets **LlamaExtract API v2** via the `llama-cloud` Python SDK.
 
 ## When to use
 
-Use it when (a) the user explicitly mentions LlamaExtract / structured extraction, or (b) they have a defined shape they want pulled out — invoices, contracts, forms, anything where "I want these specific fields" is more useful than "give me the markdown." For ad-hoc reading / summarization, use the `llamaparse` skill instead.
+Use it when (a) the user explicitly mentions LlamaExtract / structured extraction, or (b) they have a defined shape they want pulled out — invoices, contracts, forms, anything where "I want these specific fields" is more useful than "give me the markdown." For ad-hoc reading / summarization, use the `parse` facet (`parse.md`) instead.
 
 ## Setup
 
@@ -103,7 +98,7 @@ result = client.extract.run(
 - `GET /api/v2/extract/{job_id}` — poll for status; statuses `PENDING|RUNNING|COMPLETED|FAILED`
 - Auth: `Authorization: Bearer $LLAMA_CLOUD_API_KEY`
 
-See `../llamaparse/references/rest_api.md` for the broader v2 lifecycle pattern (upload → poll → fetch), which is shared across parse / extract / classify.
+See `rest_api.md` for the broader v2 lifecycle pattern (upload → poll → fetch), which is shared across parse / extract / classify.
 
 ## Cost
 
@@ -111,6 +106,6 @@ Extract is billed per page processed, similar to parse. Verify current pricing a
 
 ## What this skill does NOT do
 
-- Parsing to markdown/text — use the `llamaparse` skill instead.
-- Classification or document splitting — see the `llamaclassify` and `llamasplit` skills.
+- Parsing to markdown/text — use the `parse` facet (`parse.md`) instead.
+- Classification or document splitting — see the `classify` and `split` facets.
 - Store API keys. Keys come from the environment, every run.

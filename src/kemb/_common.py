@@ -242,7 +242,7 @@ def render_dry_run(command: str, fields: dict) -> str:
     output always ends with the same trailing reassurance so a CI grep
     for "no upload" is reliable.
     """
-    lines = [f"[dry-run] llamaparse {command}"]
+    lines = [f"[dry-run] kemb {command}"]
     width = max((len(k) for k in fields), default=0)
     for key, value in fields.items():
         rendered = _stringify_dry_run_value(value)

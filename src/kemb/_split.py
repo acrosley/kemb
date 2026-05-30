@@ -208,9 +208,9 @@ def add_subparser(subparsers):
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"
-            "  llamaparse split ./report.pdf --categories @cats.json\n"
-            "  llamaparse split ./report.pdf --categories '[{\"name\":\"intro\",\"description\":\"opening summary\"}]'\n"
-            "  llamaparse split ./report.pdf --configuration-id cfg_split_1\n"
+            "  kemb split ./report.pdf --categories @cats.json\n"
+            "  kemb split ./report.pdf --categories '[{\"name\":\"intro\",\"description\":\"opening summary\"}]'\n"
+            "  kemb split ./report.pdf --configuration-id cfg_split_1\n"
         ),
     )
     p.add_argument("input", type=Path, help="Path to the document to split.")

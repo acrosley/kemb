@@ -1,9 +1,10 @@
-"""llamaparse-cli — thin wrapper around LlamaCloud document APIs.
+"""kemb — corpus curation toolkit for agent-ready PDF libraries.
 
-Subcommands: parse, extract, classify, split. Each shares the same auth and
-SDK-with-REST-fallback pattern; the per-feature implementations live in
-sibling modules so callers can import a single capability without paying for
-the others.
+The kembing process: probe a corpus, plan a pass, execute, render into a
+mirror. Single-document operations (parse, extract, classify, split) remain
+as facets — each shares auth and the SDK-with-REST-fallback pattern, and the
+per-feature implementations live in sibling modules so callers can import a
+single capability without paying for the others.
 """
 from __future__ import annotations
 

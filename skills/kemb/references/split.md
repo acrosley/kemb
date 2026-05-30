@@ -1,9 +1,4 @@
----
-name: llamasplit
-description: Split a document into labeled sections by category using LlamaIndex's LlamaSplit v1 beta service. Use whenever the user names LlamaSplit or wants a long document broken into typed sections (intro / methodology / results, or contract clauses, or chapters) with page ranges and confidence per section.
----
-
-# LlamaSplit
+# Split facet — LlamaSplit v1 beta
 
 LlamaSplit is LlamaIndex's hosted document-splitting service. Provide a set of categories (each with a name + natural-language description) and a document; it returns per-segment page ranges, the matched category, and a confidence score per section. This skill targets **LlamaSplit API v1 beta** via the `llama-cloud` Python SDK (`client.beta.split`).
 
@@ -11,7 +6,7 @@ LlamaSplit is currently a **beta** endpoint. Response shape and the `/api/v1/bet
 
 ## When to use
 
-Use it when the user wants a document **broken into typed sections** — separating contract clauses by type, segmenting a long report into intro / methodology / results / appendix, splitting a deposition transcript by speaker / topic, etc. If they want every field pulled, use `llamaextract`. If they want one label for the whole document, use `llamaclassify`.
+Use it when the user wants a document **broken into typed sections** — separating contract clauses by type, segmenting a long report into intro / methodology / results / appendix, splitting a deposition transcript by speaker / topic, etc. If they want every field pulled, use `extract` (`extract.md`). If they want one label for the whole document, use `classify` (`classify.md`).
 
 ## Setup
 
@@ -110,7 +105,7 @@ If you need finer control: `client.beta.split.create(...)` returns a job, then `
 
 ## What this skill does NOT do
 
-- Convert to markdown — use `llamaparse`.
-- Pull structured fields — use `llamaextract`.
-- Single-label categorization — use `llamaclassify`.
+- Convert to markdown — use `parse` (`parse.md`).
+- Pull structured fields — use `extract` (`extract.md`).
+- Single-label categorization — use `classify` (`classify.md`).
 - Store API keys. Keys come from the environment, every run.

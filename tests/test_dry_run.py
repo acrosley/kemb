@@ -16,7 +16,7 @@ import pytest
 
 import requests
 
-from llamaparse_cli import _common, _core
+from kemb import _common, _core
 
 
 @pytest.fixture(autouse=True)
@@ -87,7 +87,7 @@ def categories_file(tmp_path: Path) -> Path:
 class TestRenderDryRun:
     def test_basic_layout_and_trailer(self):
         out = _common.render_dry_run("parse", {"input": "foo.pdf", "tier": "fast"})
-        assert out.startswith("[dry-run] llamaparse parse")
+        assert out.startswith("[dry-run] kemb parse")
         assert "input" in out
         assert "tier" in out
         assert "fast" in out
@@ -121,7 +121,7 @@ class TestParseDryRun:
         rc = _core.main(["parse", str(fake_pdf), "--dry-run", "--tier", "agentic"])
         assert rc == 0
         out = capsys.readouterr().out
-        assert "[dry-run] llamaparse parse" in out
+        assert "[dry-run] kemb parse" in out
         assert "agentic" in out
         assert "no upload" in out
         # Default markdown output path should appear.
@@ -146,7 +146,7 @@ class TestExtractDryRun:
         ])
         assert rc == 0
         out = capsys.readouterr().out
-        assert "[dry-run] llamaparse extract" in out
+        assert "[dry-run] kemb extract" in out
         # Schema summary should mention at least one of its properties.
         assert "vendor" in out or "total" in out
         assert "no upload" in out
@@ -176,7 +176,7 @@ class TestClassifyDryRun:
         ])
         assert rc == 0
         out = capsys.readouterr().out
-        assert "[dry-run] llamaparse classify" in out
+        assert "[dry-run] kemb classify" in out
         assert "invoice" in out
         assert "multimodal" in out
 
@@ -195,7 +195,7 @@ class TestSplitDryRun:
         ])
         assert rc == 0
         out = capsys.readouterr().out
-        assert "[dry-run] llamaparse split" in out
+        assert "[dry-run] kemb split" in out
         assert "intro" in out
         assert "semantic" in out
 

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from llamaparse_cli import _core, _probe
+from kemb import _core, _probe
 
 
 # ---------------------------------------------------------------------------
@@ -413,7 +413,7 @@ class TestRendering:
 
 
 # ---------------------------------------------------------------------------
-# End-to-end: `llamaparse probe ...` through _core.main
+# End-to-end: `kemb probe ...` through _core.main
 # ---------------------------------------------------------------------------
 
 

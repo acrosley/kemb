@@ -1,0 +1,86 @@
+# Probe facet — local directory inventory
+
+`probe` walks a directory tree and reports what's in it: per-file path, size, modification time, extension, mime type, and whether the format is one LlamaCloud is likely to accept. It is the first shipped step of the "kembing" arc — probe → plan → pass → mirror — the "feel the pile" pass you run before committing any credits to a batch.
+
+Unlike the other facets, `probe` is **local-only and free**: it makes no network call, uploads nothing, and spends zero credits. It needs no `LLAMA_CLOUD_API_KEY` and works fully offline.
+
+## When to use
+
+Use it when the user wants to **see or scope a directory** before processing it — "what's in this folder?", "inventory my inbox", "how many PDFs are in here and will LlamaCloud take them?", "scope this batch before I parse it". It answers those questions instantly and for free, then hands off to `parse` / `extract` / `classify` / `split` for the documents worth processing.
+
+If the user wants to act on a single known file, skip `probe` and route straight to the relevant document facet.
+
+## Setup
+
+None. `probe` reads the local filesystem only — no API key, no network, no SDK. The bundled shim runs it the same way as every other facet.
+
+## Quick start
+
+```bash
+kemb probe ./inbox                              # human-readable table + summary
+```
+
+Each row reports the file's relative path, size, mtime, extension, mime type, and a support flag (whether LlamaCloud is likely to accept the format). A summary block at the end totals files, bytes, and how many are supported.
+
+## Flags
+
+- `--ext pdf,docx` — only report files with these extensions (comma-separated, no dots).
+- `--max-depth N` — cap recursion depth (the target directory is depth 0).
+- `--max-files N` — stop after N files; useful as a guardrail on huge trees.
+- `--include-hidden` — include dotfiles and hidden directories (skipped by default).
+- `--supported-only` — report only files LlamaCloud is likely to accept; drops the rest.
+- `--follow-symlinks` — descend into symlinked directories (not followed by default).
+- `--json` — emit machine-readable JSON instead of the table.
+- `--output PATH` — write the report to a file instead of stdout.
+
+```bash
+kemb probe ./inbox --ext pdf,docx               # filter by extension
+kemb probe ./inbox --max-depth 2                # cap recursion depth
+kemb probe ./inbox --supported-only             # only LlamaCloud-friendly files
+kemb probe ./inbox --json > inventory.json      # machine-readable inventory
+```
+
+## JSON output
+
+`--json` emits a per-file array plus a summary, suitable for piping into `jq` or driving a batch script:
+
+```json
+{
+  "root": "./inbox",
+  "files": [
+    {
+      "path": "contracts/acme-2025.pdf",
+      "size": 184320,
+      "mtime": "2026-05-12T09:31:04Z",
+      "ext": "pdf",
+      "mime": "application/pdf",
+      "supported": true
+    }
+  ],
+  "summary": { "files": 1, "bytes": 184320, "supported": 1 }
+}
+```
+
+Combine with `--supported-only` to get a clean worklist of exactly the files a downstream facet will accept.
+
+## Workflow — probe before a batch
+
+`probe` pairs naturally with the `--dry-run` flag on the document facets. The pattern for scoping a directory run is:
+
+1. **Probe** the directory to see counts, sizes, and which files are supported:
+   ```bash
+   kemb probe ./inbox --supported-only --json > worklist.json
+   ```
+2. **Dry-run** one representative file to confirm the config that would be sent, with no upload and no credits spent:
+   ```bash
+   kemb parse ./inbox/sample.pdf --tier agentic --dry-run
+   ```
+3. **Run** the real batch only once the inventory and config look right, looping over the supported files from step 1.
+
+This lets the user understand cost and scope before a single credit is spent.
+
+## What this facet does NOT do
+
+- Read or parse file contents — it inspects metadata only. To turn documents into markdown use `parse` (`parse.md`).
+- Call LlamaCloud or spend credits — it is entirely local. The support flag is a heuristic on extension/mime type, not a server check.
+- Plan or execute a batch automatically — that orchestration (plan → pass → mirror) is still in progress; `probe` is the local first step.

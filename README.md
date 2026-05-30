@@ -1,4 +1,4 @@
-# llamaparse-plugin
+# Kemb
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
@@ -6,31 +6,40 @@
 [![Cowork compatible](https://img.shields.io/badge/Cowork-compatible-1f6feb.svg)](https://claude.ai)
 [![Changelog](https://img.shields.io/badge/changelog-keepachangelog-orange.svg)](./CHANGELOG.md)
 
-> Turn any document into clean markdown, typed JSON, a classification, or
-> split sections — from one CLI or four lazy-loaded Claude skills.
+> Comb document corpora into agent-ready form. One CLI, one Claude skill,
+> four LlamaCloud-backed facets — parse, extract, classify, split — plus a
+> local, zero-credit `probe` for scoping a directory before you spend a thing.
 
-`llamaparse-plugin` wraps four LlamaCloud APIs (LlamaParse v2, LlamaExtract v2,
-LlamaClassify v2, LlamaSplit v1 beta) behind a single `llamaparse` command
-**and** ships them as Claude Code / Cowork skills that load on demand.
+**Kembing** is the discipline of preparing document corpora for agents: survey
+the pile, plan the pass, then comb each document into a structured markdown
+mirror that an LLM can actually use. Today `kemb` ships the four single-file
+document facets that make up a pass, plus a local `probe` that surveys a
+directory before you process it — the first shipped step of that arc. The rest
+of the orchestration (plan → execute → mirror with hash-stamped provenance) is
+in active development — see [`docs/goal.txt`](./docs/goal.txt).
 
-| Capability  | What it does                                                    | API                 |
+| Facet       | What it does                                                    | API                 |
 |-------------|-----------------------------------------------------------------|---------------------|
 | **parse**   | Document → clean markdown / text (tables, multi-column, scans)  | LlamaParse v2       |
 | **extract** | Document + JSON Schema → typed JSON object                      | LlamaExtract v2     |
 | **classify**| Document + categories → matched label + confidence              | LlamaClassify v2    |
 | **split**   | Document + categories → typed sections with page ranges         | LlamaSplit v1 beta  |
+| **probe**   | Directory → per-file inventory (size, type, LlamaCloud support)  | local, zero credits |
+
+`probe` and `doctor` are local, zero-credit tools — `probe` scopes a directory
+and `doctor` runs a preflight check — neither uploads a document or starts a job.
 
 ## 30-second quickstart
 
 ```bash
 # 1. Install
-pipx install git+https://github.com/acrosley/llamaparse-plugin
+pipx install git+https://github.com/acrosley/kemb
 
 # 2. Set your key (get one at https://cloud.llamaindex.ai/api-key)
 export LLAMA_CLOUD_API_KEY="llx-..."
 
 # 3. Parse anything
-llamaparse parse ./contract.pdf      # → contract.md
+kemb parse ./contract.pdf      # → contract.md
 ```
 
 That's it. `extract`, `classify`, and `split` follow the same shape — see
@@ -44,18 +53,21 @@ That's it. `extract`, `classify`, and `split` follow the same shape — see
   who want one tool that goes from "file on disk" to "usable text or JSON" —
   no per-format glue code.
 - **Teams already using Claude Code or Cowork** who want LlamaCloud's parsing
-  quality available as native skills without bloating every prompt with
-  feature documentation Claude rarely needs.
+  quality available as one native skill, with corpus-level orchestration on
+  the roadmap.
+- **Legal, research, and analyst teams** prepping large document collections
+  for agent retrieval — the next phase of kemb (probe → plan → pass → mirror)
+  targets exactly this workflow.
 - **Anyone tempted to write `requests.post(...)` against LlamaCloud yourself**
-  — this handles upload, polling, retries, REST/SDK fallback, error surfacing,
+  — kemb handles upload, polling, retries, REST/SDK fallback, error surfacing,
   and output paths so you can focus on the result.
 
 ## Two ways to use it
 
 | Mode   | What you run                                                                                                  | What you get                                                                                                                                                            |
 |--------|---------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Plugin | `/plugin install llamaparse-plugin@llamaparse` in Claude Code (or "Add marketplace from GitHub" in Cowork)    | Four lazy-loaded skills (`llamaparse`, `llamaextract`, `llamaclassify`, `llamasplit`). Only the matching skill's context loads per request.                              |
-| CLI    | `pipx install git+https://github.com/acrosley/llamaparse-plugin`                                              | A `llamaparse` command on your PATH with four subcommands.                                                                                                              |
+| Plugin | `/plugin install kemb@kemb` in Claude Code (or "Add marketplace from GitHub" in Cowork)                       | One orchestrating skill that routes by facet, with per-facet reference docs that load on demand.                                                                        |
+| CLI    | `pipx install git+https://github.com/acrosley/kemb`                                                           | A `kemb` command on your PATH with four facet subcommands and a preflight `doctor`.                                                                                     |
 
 You only need a LlamaCloud API key — grab one at
 <https://cloud.llamaindex.ai/api-key>.
@@ -83,28 +95,28 @@ propagates.
 ## Install — CLI
 
 ```bash
-pipx install git+https://github.com/acrosley/llamaparse-plugin
+pipx install git+https://github.com/acrosley/kemb
 ```
 
 or, without pipx:
 
 ```bash
-pip install git+https://github.com/acrosley/llamaparse-plugin
+pip install git+https://github.com/acrosley/kemb
 ```
 
-You'll get a `llamaparse` command with four subcommands:
+You'll get a `kemb` command:
 
 ```bash
-llamaparse --help                              # top-level help
-llamaparse parse     --help
-llamaparse extract   --help
-llamaparse classify  --help
-llamaparse split     --help
-llamaparse probe     --help                    # scan a directory (zero credits)
-llamaparse doctor                              # preflight checks (zero credits)
+kemb --help                                    # top-level help
+kemb parse     --help
+kemb extract   --help
+kemb classify  --help
+kemb split     --help
+kemb probe     --help                          # scan a directory (zero credits)
+kemb doctor                                    # preflight checks (zero credits)
 ```
 
-After install, run `llamaparse doctor` to confirm your Python, deps, and
+After install, run `kemb doctor` to confirm your Python, deps, and
 `LLAMA_CLOUD_API_KEY` are all set up — it makes one non-billable auth probe
 against LlamaCloud and never starts a job. Add `--offline` to skip the
 network check.
@@ -114,23 +126,22 @@ network check.
 ### parse — document → markdown / text
 
 ```bash
-llamaparse parse ./contract.pdf                       # → contract.md
-llamaparse parse ./scan.pdf --tier agentic            # agentic tier
-llamaparse parse ./report.pdf --output ./out.md       # explicit output path
-llamaparse parse ./report.pdf --result-type text      # → report.txt
-llamaparse parse ./report.pdf --strip-noise           # drop layout-hint comments
-llamaparse parse ./report.pdf --rest                  # force REST path (no SDK)
+kemb parse ./contract.pdf                       # → contract.md
+kemb parse ./scan.pdf --tier agentic            # agentic tier
+kemb parse ./report.pdf --output ./out.md       # explicit output path
+kemb parse ./report.pdf --result-type text      # → report.txt
+kemb parse ./report.pdf --strip-noise           # drop layout-hint comments
+kemb parse ./report.pdf --rest                  # force REST path (no SDK)
 ```
 
-**Backward compat:** `llamaparse ./file.pdf [...]` (no subcommand) still works
-and dispatches as `parse`, so existing scripts keep running.
+**Shortcut:** `kemb ./file.pdf [...]` (no subcommand) dispatches as `parse`.
 
 ### extract — document + JSON Schema → typed JSON
 
 ```bash
-llamaparse extract ./invoice.pdf --schema @invoice_schema.json
-llamaparse extract ./form.pdf    --configuration-id cfg_abc123    # saved agent
-llamaparse extract ./doc.pdf     --schema '{"type":"object","properties":{"name":{"type":"string"}}}'
+kemb extract ./invoice.pdf --schema @invoice_schema.json
+kemb extract ./form.pdf    --configuration-id cfg_abc123    # saved agent
+kemb extract ./doc.pdf     --schema '{"type":"object","properties":{"name":{"type":"string"}}}'
 ```
 
 Pass a JSON Schema describing the shape you want back. Save once, reference
@@ -140,9 +151,9 @@ with `@path.json`, or inline small ones. Output defaults to
 ### classify — document + categories → label + confidence
 
 ```bash
-llamaparse classify ./doc.pdf --rules @rules.json
-llamaparse classify ./doc.pdf --rules '[{"type":"invoice","description":"A bill requesting payment"}]'
-llamaparse classify ./doc.pdf --mode multimodal       # vision for scans / layout-heavy
+kemb classify ./doc.pdf --rules @rules.json
+kemb classify ./doc.pdf --rules '[{"type":"invoice","description":"A bill requesting payment"}]'
+kemb classify ./doc.pdf --mode multimodal       # vision for scans / layout-heavy
 ```
 
 `--rules` is a JSON list of `{type, description}` objects. The classifier
@@ -152,9 +163,9 @@ returns `{type, confidence, reasoning}`. Output defaults to
 ### split — long document → typed sections with page ranges
 
 ```bash
-llamaparse split ./report.pdf --categories @cats.json
-llamaparse split ./report.pdf --categories '[{"name":"intro","description":"Opening summary"}]'
-llamaparse split ./report.pdf --splitting-strategy semantic
+kemb split ./report.pdf --categories @cats.json
+kemb split ./report.pdf --categories '[{"name":"intro","description":"Opening summary"}]'
+kemb split ./report.pdf --splitting-strategy semantic
 ```
 
 LlamaSplit is currently a **v1 beta** endpoint — its response shape may
@@ -163,11 +174,11 @@ evolve. Output defaults to `<input>.split.json`.
 ### probe — recursively inventory a directory (zero credits)
 
 ```bash
-llamaparse probe ./inbox                              # human-readable table
-llamaparse probe ./inbox --ext pdf,docx               # filter by extension
-llamaparse probe ./inbox --max-depth 2                # cap recursion depth
-llamaparse probe ./inbox --supported-only             # only LlamaCloud-friendly files
-llamaparse probe ./inbox --json > inventory.json      # machine-readable
+kemb probe ./inbox                              # human-readable table
+kemb probe ./inbox --ext pdf,docx               # filter by extension
+kemb probe ./inbox --max-depth 2                # cap recursion depth
+kemb probe ./inbox --supported-only             # only LlamaCloud-friendly files
+kemb probe ./inbox --json > inventory.json      # machine-readable
 ```
 
 `probe` walks the target directory recursively and reports per-file size,
@@ -179,10 +190,10 @@ files and directories are skipped unless `--include-hidden` is passed.
 ### --dry-run — preview a job without spending credits
 
 ```bash
-llamaparse parse    ./contract.pdf --dry-run
-llamaparse extract  ./invoice.pdf  --schema @invoice.json --dry-run
-llamaparse classify ./doc.pdf      --rules @rules.json   --dry-run
-llamaparse split    ./report.pdf   --categories @cats.json --dry-run
+kemb parse    ./contract.pdf --dry-run
+kemb extract  ./invoice.pdf  --schema @invoice.json --dry-run
+kemb classify ./doc.pdf      --rules @rules.json   --dry-run
+kemb split    ./report.pdf   --categories @cats.json --dry-run
 ```
 
 Adds a `--dry-run` mode to every job subcommand. It validates the inputs
@@ -193,13 +204,13 @@ Pair it with `probe` to scope a batch run before any credits are spent.
 
 ## Real examples
 
-Concrete recipes for the four subcommands. Schema/rule files referenced below
+Concrete recipes for the four facets. Schema/rule files referenced below
 ship in [`examples/`](./examples/) so you can copy and run them as-is.
 
 ### Extract invoice line items
 
 ```bash
-llamaparse extract ./acme-invoice-2025-04.pdf \
+kemb extract ./acme-invoice-2025-04.pdf \
     --schema @examples/schemas/invoice.json \
     --output ./acme-2025-04.json
 ```
@@ -211,7 +222,7 @@ typed JSON file you can pipe into a ledger or a spreadsheet.
 
 ```bash
 for f in inbox/*.pdf; do
-    llamaparse classify "$f" --rules @examples/rules/document_routing.json
+    kemb classify "$f" --rules @examples/rules/document_routing.json
 done
 ```
 
@@ -222,7 +233,7 @@ into a shell loop and `mv` files into per-type folders.
 ### Split a research report by section
 
 ```bash
-llamaparse split ./annual-report.pdf \
+kemb split ./annual-report.pdf \
     --categories @examples/categories/report_sections.json
 ```
 
@@ -233,42 +244,58 @@ chunkers.
 ### Parse a multi-column scan to markdown
 
 ```bash
-llamaparse parse ./scanned-deposition.pdf --tier agentic --strip-noise
+kemb parse ./scanned-deposition.pdf --tier agentic --strip-noise
 ```
 
 `agentic` handles the multi-column OCR; `--strip-noise` drops repeating
 header/footer artifacts so the resulting markdown is paste-ready.
 
+### Scope a directory, then run the batch
+
+```bash
+# 1. See what's in the folder and which files LlamaCloud will accept (free)
+kemb probe ./inbox --supported-only
+
+# 2. Confirm the config one file would send — no upload, no credits
+kemb parse ./inbox/sample.pdf --tier agentic --dry-run
+
+# 3. Run the batch once the inventory and config look right
+for f in inbox/*.pdf; do kemb parse "$f" --tier agentic; done
+```
+
+`probe` and `--dry-run` together let you understand cost and scope before a
+single credit is spent — survey the pile, preview the job, then commit.
+
 ## Install — Claude Code plugin
 
 ```
-/plugin marketplace add acrosley/llamaparse-plugin
-/plugin install llamaparse-plugin@llamaparse
+/plugin marketplace add acrosley/kemb
+/plugin install kemb@kemb
 ```
 
 Updates / removal:
 
 ```
-/plugin marketplace update llamaparse
-/plugin uninstall llamaparse-plugin@llamaparse
-/plugin marketplace remove llamaparse
+/plugin marketplace update kemb
+/plugin uninstall kemb@kemb
+/plugin marketplace remove kemb
 ```
 
-Four lazy-loaded skills become available after install. Each has its own
-trigger conditions; Claude pulls in only the matching skill's context per
-request:
+One orchestrating skill (`kemb`) loads on demand. Its routing table sends
+each request to a facet under `references/`:
 
-| Skill           | Triggers on requests like                                                                                                |
-|-----------------|--------------------------------------------------------------------------------------------------------------------------|
-| `llamaparse`    | "Parse this PDF with LlamaParse." / "OCR this scan." / "Convert this Excel to markdown."                                 |
-| `llamaextract`  | "Extract invoice number and total from this PDF." / "Pull fields out as JSON using this schema."                         |
-| `llamaclassify` | "Classify this document — is it a contract, invoice, or receipt?" / "Route incoming docs by type."                       |
-| `llamasplit`    | "Split this long report into intro / methodology / results / appendix sections."                                         |
+| Request                                                                                                                  | Facet doc                |
+|--------------------------------------------------------------------------------------------------------------------------|--------------------------|
+| "Parse this PDF with LlamaParse." / "OCR this scan." / "Convert this Excel to markdown."                                 | `references/parse.md`    |
+| "Extract invoice number and total from this PDF." / "Pull fields out as JSON using this schema."                         | `references/extract.md`  |
+| "Classify this document — is it a contract, invoice, or receipt?" / "Route incoming docs by type."                       | `references/classify.md` |
+| "Split this long report into intro / methodology / results / appendix sections."                                         | `references/split.md`    |
+| "What's in this folder? / inventory a directory / scope a batch before parsing."                                         | `references/probe.md`    |
 
-Invoke any of them explicitly via the slash menu: `/llamaparse-plugin:<skill>`.
+Invoke the skill explicitly via the slash menu: `/kemb:kemb`.
 
-The first time a skill runs in a fresh sandbox it `pip install`s `llama-cloud`
-automatically (the bundled scripts pass `--auto-install`), so you don't need
+The first time the skill runs in a fresh sandbox it `pip install`s `llama-cloud`
+automatically (the bundled shim passes `--auto-install`), so you don't need
 to set anything up beyond the API key.
 
 ## Install — Claude Cowork plugin
@@ -279,8 +306,8 @@ slash command in Cowork).
 1. Open Claude Desktop → **Cowork** tab.
 2. Click **Customize** in the left sidebar.
 3. Click **+** → **Add marketplace from GitHub**.
-4. Enter `acrosley/llamaparse-plugin`.
-5. Find `llamaparse-plugin` in the marketplace and click **Install**.
+4. Enter `acrosley/kemb`.
+5. Find `kemb` in the marketplace and click **Install**.
 6. Fully quit Cowork from the system tray and relaunch.
 
 ### Network allowlist (Cowork only)
@@ -297,13 +324,14 @@ restriction.
 If you've cloned the repo and want to test changes without pushing:
 
 1. **Customize** → **+** → **Add marketplace from local folder**
-2. Point it at the cloned `llamaparse-plugin` directory
+2. Point it at the cloned `kemb` directory
 3. Install as above
 
 ## Cost
 
-All four capabilities bill per page processed. Parse exposes a tier knob;
-extract / classify / split each have a single per-page rate.
+The four document facets bill per page processed. Parse exposes a tier knob;
+extract / classify / split each have a single per-page rate. `probe` and
+`doctor` are local and free — they never spend a credit.
 
 **Parse tiers:**
 
@@ -326,32 +354,37 @@ one-line note if you asked for markdown). Verify current pricing at
 ## What's inside
 
 ```
-llamaparse-plugin/
+kemb/
 ├── .claude-plugin/
 │   ├── marketplace.json            — marketplace manifest
 │   └── plugin.json                 — plugin manifest
-├── pyproject.toml                  — packaging for the `llamaparse` CLI
-├── src/llamaparse_cli/
+├── pyproject.toml                  — packaging for the `kemb` CLI
+├── src/kemb/
 │   ├── __init__.py                 — public exports
-│   ├── _core.py                    — subcommand dispatcher (parse / extract / classify / split)
+│   ├── _core.py                    — subcommand dispatcher (parse / extract / classify / split / probe / doctor)
 │   ├── _common.py                  — shared helpers (auth, SDK loader, REST poller, file upload)
 │   ├── _parse.py                   — LlamaParse v2
 │   ├── _extract.py                 — LlamaExtract v2
 │   ├── _classify.py                — LlamaClassify v2
 │   ├── _split.py                   — LlamaSplit v1 beta
 │   ├── _probe.py                   — recursive directory metadata scan (local-only)
-│   └── _doctor.py                  — preflight checks (local-only)
-├── skills/
-│   ├── llamaparse/                 — parse → markdown/text
-│   │   ├── SKILL.md
-│   │   ├── scripts/parse_document.py
-│   │   └── references/{rest_api,troubleshooting}.md
-│   ├── llamaextract/               — schema-driven structured extraction
-│   ├── llamaclassify/              — categorization with confidence
-│   └── llamasplit/                 — section splitting (v1 beta)
+│   └── _doctor.py                  — zero-credit preflight
+├── skills/kemb/                    — single orchestrating skill
+│   ├── SKILL.md                    — routes requests to facets
+│   ├── scripts/kemb_cli.py         — shim into src/kemb/
+│   └── references/
+│       ├── parse.md                — parse facet (LlamaParse v2)
+│       ├── extract.md              — extract facet (LlamaExtract v2)
+│       ├── classify.md             — classify facet (LlamaClassify v2)
+│       ├── split.md                — split facet (LlamaSplit v1 beta)
+│       ├── probe.md                — probe facet (local directory scan)
+│       ├── rest_api.md             — LlamaCloud v2 REST reference
+│       └── troubleshooting.md      — common failure modes
 ├── examples/                       — copy-pasteable schemas, rules, categories
-├── docs/llamacloud/                — local mirror of the entire LlamaCloud docs
-│                                     site (~900 pages) + sha256 manifest
+├── docs/
+│   ├── goal.txt                    — corpus-curation north star
+│   └── llamacloud/                 — local mirror of the entire LlamaCloud
+│                                     docs site (~900 pages) + sha256 manifest
 ├── scripts/
 │   ├── fetch_docs.py               — refresh the mirror from upstream
 │   ├── check_docs_staleness.py     — compare local hashes against upstream
@@ -365,16 +398,14 @@ llamaparse-plugin/
 The docs mirror has its own [README](./docs/llamacloud/README.md) covering
 scope, layout, and the weekly staleness CI job that watches for upstream drift.
 
-Each skill is independent and lazy-loaded: Claude pulls in only the SKILL.md
-whose description matches the user's request, so feature context stays out of
-the window until needed. All four shell into the same `llamaparse_cli`
-package, so CLI and skills never drift.
+The plugin skill and the standalone CLI both shell into the same `kemb`
+package, so the two invocation paths never drift.
 
 ## Contributing
 
 Bug reports, feature requests, and PRs welcome. See
 [CONTRIBUTING.md](./CONTRIBUTING.md) for dev setup, the test workflow, and
-the pattern to follow when adding a new capability.
+the pattern to follow when adding a new facet.
 
 ## Changelog
 

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from llamaparse_cli import _split
+from kemb import _split
 
 
 # ---------------------------------------------------------------------------

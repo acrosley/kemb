@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""llamaparse CLI — subcommand dispatcher.
+"""kemb CLI — subcommand dispatcher.
 
 Subcommands:
     parse     — convert a document to markdown/text (the original behaviour)
@@ -9,7 +9,7 @@ Subcommands:
     probe     — recursively scan a directory and report file metadata
     doctor    — preflight checks (Python, deps, API key, reachability)
 
-Backward compatible: `llamaparse ./file.pdf [--tier ...]` (no subcommand) still
+Backward compatible: `kemb ./file.pdf [--tier ...]` (no subcommand) still
 works and is dispatched as `parse`.
 
 API key auth: every subcommand reads LLAMA_CLOUD_API_KEY from the environment.
@@ -24,7 +24,7 @@ from importlib.metadata import PackageNotFoundError, version as _pkg_version
 from . import _classify, _doctor, _extract, _parse, _probe, _split
 
 try:
-    __version__ = _pkg_version("llamaparse-cli")
+    __version__ = _pkg_version("kemb")
 except PackageNotFoundError:
     __version__ = "0.0.0+unknown"
 
@@ -33,23 +33,23 @@ SUBCOMMANDS = ("parse", "extract", "classify", "split", "probe", "doctor")
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="llamaparse",
+        prog="kemb",
         description=(
             "Run LlamaCloud document operations (parse / extract / classify / "
             "split) from the command line. Each subcommand has its own --help."
         ),
         epilog=(
             "Examples:\n"
-            "  llamaparse parse ./contract.pdf --tier agentic\n"
-            "  llamaparse extract ./invoice.pdf --schema @invoice_schema.json\n"
-            "  llamaparse classify ./doc.pdf --rules @rules.json\n"
-            "  llamaparse split ./report.pdf --categories @cats.json\n"
-            "  llamaparse probe ./inbox                           # scan dir metadata\n"
-            "  llamaparse parse ./contract.pdf --dry-run          # validate without uploading\n"
-            "  llamaparse doctor                                  # preflight checks\n"
+            "  kemb parse ./contract.pdf --tier agentic\n"
+            "  kemb extract ./invoice.pdf --schema @invoice_schema.json\n"
+            "  kemb classify ./doc.pdf --rules @rules.json\n"
+            "  kemb split ./report.pdf --categories @cats.json\n"
+            "  kemb probe ./inbox                           # scan dir metadata\n"
+            "  kemb parse ./contract.pdf --dry-run          # validate without uploading\n"
+            "  kemb doctor                                  # preflight checks\n"
             "\n"
-            "For backward compatibility, `llamaparse <file> ...` (no\n"
-            "subcommand) is treated as `llamaparse parse <file> ...`.\n"
+            "For backward compatibility, `kemb <file> ...` (no\n"
+            "subcommand) is treated as `kemb parse <file> ...`.\n"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -69,7 +69,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _normalize_argv(argv):
-    """Insert `parse` if the user invoked the legacy form `llamaparse <file>`."""
+    """Insert `parse` if the user invoked the legacy form `kemb <file>`."""
     if not argv:
         return argv
     first = argv[0]

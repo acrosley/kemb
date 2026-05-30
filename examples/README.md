@@ -1,6 +1,6 @@
 # Examples
 
-Copy-pasteable schema / rule / category files for the `llamaparse` CLI.
+Copy-pasteable schema / rule / category files for the `kemb` CLI.
 All four examples below are referenced from the top-level
 [README](../README.md#real-examples). Each file is a starting point — adapt
 the field names, descriptions, and structures to your own documents.
@@ -13,11 +13,11 @@ a handful of fields.
 ## `schemas/invoice.json`
 
 A realistic invoice JSON Schema with vendor, billing, line items, totals, and
-payment terms. Feed it to `llamaparse extract` to pull a typed JSON object
+payment terms. Feed it to `kemb extract` to pull a typed JSON object
 out of any invoice PDF:
 
 ```bash
-llamaparse extract ./acme-invoice-2025-04.pdf \
+kemb extract ./acme-invoice-2025-04.pdf \
     --schema @examples/schemas/invoice.json \
     --output ./acme-2025-04.json
 ```
@@ -28,11 +28,11 @@ extractor uses them as natural-language hints.
 ## `rules/document_routing.json`
 
 Five-way classifier rules (contract / invoice / receipt / correspondence /
-other) suitable for routing a mixed inbox. Pass it to `llamaparse classify`:
+other) suitable for routing a mixed inbox. Pass it to `kemb classify`:
 
 ```bash
 for f in inbox/*.pdf; do
-    llamaparse classify "$f" --rules @examples/rules/document_routing.json
+    kemb classify "$f" --rules @examples/rules/document_routing.json
 done
 ```
 
@@ -44,10 +44,10 @@ files into per-type folders.
 
 Six section categories for splitting a long research report (intro,
 methodology, results, discussion, references, appendix). Pass it to
-`llamaparse split`:
+`kemb split`:
 
 ```bash
-llamaparse split ./annual-report.pdf \
+kemb split ./annual-report.pdf \
     --categories @examples/categories/report_sections.json
 ```
 

@@ -1,9 +1,4 @@
----
-name: llamaparse
-description: Parse documents with LlamaIndex's LlamaParse v2 service — PDFs, Word, PowerPoint, Excel, images, and scans — into clean markdown or text. Use whenever the user names LlamaParse or LlamaCloud, asks to OCR a scan, or wants a higher-quality parse than pdfplumber/pypdf produces (tables, multi-column layout, mixed text + images).
----
-
-# LlamaParse
+# Parse facet — LlamaParse v2
 
 LlamaParse is LlamaIndex's hosted document parsing service. It turns messy real-world documents — PDFs with tables and multi-column layouts, scanned forms, Office files, images — into clean markdown or text that's actually usable downstream.
 
@@ -115,7 +110,7 @@ If parsing fails or returns unexpected output, see `references/troubleshooting.m
 ## What this skill does NOT do
 
 - Embedding or vector storage. Pair with a separate RAG pipeline.
-- Schema-driven structured extraction — that's the **`llamaextract`** sibling skill (LlamaExtract). If the user wants typed JSON fields out, route them there instead of trying to fake it through LlamaParse.
-- Single-label document classification with confidence scores — see the **`llamaclassify`** sibling skill (LlamaClassify).
-- Splitting a long document into typed sections by category — see the **`llamasplit`** sibling skill (LlamaSplit beta).
+- Schema-driven structured extraction — that's the **`extract` facet** (`extract.md`, LlamaExtract). If the user wants typed JSON fields out, route them there instead of trying to fake it through LlamaParse.
+- Single-label document classification with confidence scores — see the **`classify` facet** (`classify.md`, LlamaClassify).
+- Splitting a long document into typed sections by category — see the **`split` facet** (`split.md`, LlamaSplit beta).
 - Store API keys. Keys come from the environment, every run.

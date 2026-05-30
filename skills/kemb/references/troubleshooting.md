@@ -91,7 +91,7 @@ A few things to check, in order:
 
 LlamaParse APIs evolve. If a script that worked yesterday breaks today on field names, check the SDK source at https://github.com/run-llama/llama-cloud-py and the API reference on the LlamaIndex docs site.
 
-The bundled script defends against several known v2 shape variations (e.g., `id` vs `job_id`, expanded content under `result` vs at top level, single string vs `pages` array). If a new variant appears, adjust `_extract_sdk_result` / `_extract_rest_field` in `src/llamaparse_cli/_core.py` rather than working around it in user code. (`scripts/parse_document.py` is a thin shim that forwards into that module.)
+The bundled script defends against several known v2 shape variations (e.g., `id` vs `job_id`, expanded content under `result` vs at top level, single string vs `pages` array). If a new variant appears, adjust `_extract_sdk_result` / `_extract_rest_field` in `src/kemb/_core.py` rather than working around it in user code. (`skills/kemb/scripts/kemb_cli.py` is a thin shim that forwards into that module.)
 
 ## Rate limiting (`429`)
 

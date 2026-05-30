@@ -1,13 +1,13 @@
 # Contributing
 
-Thanks for your interest in `llamaparse-plugin`. Bug reports, feature
+Thanks for your interest in `kemb`. Bug reports, feature
 requests, and pull requests are all welcome.
 
 ## Dev setup
 
 ```bash
-git clone https://github.com/acrosley/llamaparse-plugin
-cd llamaparse-plugin
+git clone https://github.com/acrosley/kemb
+cd kemb
 pip install -e ".[test]"
 ```
 
@@ -33,10 +33,12 @@ LlamaCloud must be mocked — never commit a fixture that requires a real key.
   top of every module, type hints on public helpers.
 - Cross-cutting concerns (auth, SDK loading, REST polling, file upload, JSON
   parsing, error surfacing, output writing) live in
-  `src/llamaparse_cli/_common.py`. Reuse them — don't reinvent.
-- Each capability gets its own module under `src/llamaparse_cli/` and its own
-  lazy-loaded skill under `skills/`. Keep capability modules focused on what
-  makes them different (request shape, response shape, post-processing).
+  `src/kemb/_common.py`. Reuse them — don't reinvent.
+- Each capability gets its own module under `src/kemb/`. All capabilities
+  surface through the single `skills/kemb/` orchestrating skill, with
+  per-facet docs under `skills/kemb/references/`. Keep capability modules
+  focused on what makes them different (request shape, response shape,
+  post-processing).
 
 ## Adding a new capability
 
@@ -49,10 +51,11 @@ Each module exposes the same three things:
 2. `add_subparser(subparsers)` that wires up `argparse` flags.
 3. `run(args)` that orchestrates SDK-first / REST-fallback and writes output.
 
-Then register the subcommand in `src/llamaparse_cli/_core.py` (add it to
-`SUBCOMMANDS` and call its `add_subparser` from `build_parser`), and ship a
-sibling skill under `skills/<name>/` with a `SKILL.md` and a runner script
-that shells into the CLI.
+Then register the subcommand in `src/kemb/_core.py` (add it to
+`SUBCOMMANDS` and call its `add_subparser` from `build_parser`), and add a
+facet doc under `skills/kemb/references/<name>.md` describing when to use
+it. Update the routing table in `skills/kemb/SKILL.md` so the orchestrating
+skill knows about the new facet.
 
 ## Pull requests
 
@@ -64,7 +67,7 @@ that shells into the CLI.
 
 ## Reporting issues
 
-File issues at <https://github.com/acrosley/llamaparse-plugin/issues>.
+File issues at <https://github.com/acrosley/kemb/issues>.
 Include the CLI command you ran, the LlamaCloud API the failure came from
 (parse / extract / classify / split), and the verbatim error. **Never paste
 your API key**, even partially — the CLI surfaces errors with `error: …`

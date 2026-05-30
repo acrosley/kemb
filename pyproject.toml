@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "llamaparse-cli"
+name = "kemb"
 version = "0.5.0"
-description = "Tiny CLI wrapper around LlamaCloud APIs (LlamaParse v2, LlamaExtract v2, LlamaClassify v2, LlamaSplit v1 beta). Single binary with subcommands: parse, extract, classify, split."
+description = "Corpus curation for agent-ready PDF libraries. Point Claude at a directory; probe, plan, then comb the corpus into a structured markdown mirror. Single-file parse, extract, classify, and split as facets of the kembing process, powered by LlamaCloud where needed."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.9"
@@ -13,17 +13,18 @@ authors = [
     { name = "Andrew Crosley", email = "crosleya1394@gmail.com" }
 ]
 keywords = [
-    "llamaparse",
-    "llamaextract",
-    "llamaclassify",
-    "llamasplit",
-    "llamacloud",
+    "kemb",
+    "kembing",
+    "corpus-curation",
+    "agent-ready",
+    "rag",
     "pdf",
     "ocr",
     "document-parsing",
     "structured-extraction",
     "classification",
     "markdown",
+    "llamacloud",
 ]
 classifiers = [
     "License :: OSI Approved :: MIT License",
@@ -44,11 +45,11 @@ test = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/acrosley/llamaparse-plugin"
-Repository = "https://github.com/acrosley/llamaparse-plugin"
+Homepage = "https://github.com/acrosley/kemb"
+Repository = "https://github.com/acrosley/kemb"
 
 [project.scripts]
-llamaparse = "llamaparse_cli:main"
+kemb = "kemb:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
