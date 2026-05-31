@@ -24,6 +24,7 @@ in active development — see [`docs/goal.txt`](./docs/goal.txt).
 | **extract** | Document + JSON Schema → typed JSON object                      | LlamaExtract v2     |
 | **classify**| Document + categories → matched label + confidence              | LlamaClassify v2    |
 | **split**   | Document + categories → typed sections with page ranges         | LlamaSplit v1 beta  |
+| **stemma**  | Document → provenance-stamped markdown mirror + `cite` resolver  | LlamaParse v2 + local |
 | **probe**   | Directory → per-file inventory (size, type, LlamaCloud support)  | local, zero credits |
 
 `probe` and `doctor` are local, zero-credit tools — `probe` scopes a directory
@@ -168,6 +169,25 @@ kemb split ./report.pdf --splitting-strategy semantic
 
 LlamaSplit is currently a **v1 beta** endpoint — its response shape may
 evolve. Output defaults to `<input>.split.json`.
+
+### stemma — provenance-stamped mirror + verbatim citation
+
+```bash
+kemb stemma ./agreement.pdf --tier agentic        # parse, then comb into mirror/
+kemb stemma --from-parse-json ./agreement.parse.json --source ./agreement.pdf
+kemb cite "held in strict confidence" --manifest mirror/agreement.stemma.json
+# → agreement.pdf p.2  [p2-b1]  chars 95-112  bbox x=72 y=130 w=468 h=48
+```
+
+`stemma` combs a document into `mirror/<doc>.md` — agent-readable markdown where
+every block carries an inline stemma record `{source, page, sha256, char span,
+bbox?}` — plus a `mirror/<doc>.stemma.json` manifest. `cite` then resolves any
+verbatim quote back to its source page and precise character span (and bounding
+box, when the parse tier returned layout items), exiting non-zero if the quote
+isn't found. The build is deterministic, so the hashes are stable provenance.
+Use `--from-parse-json` to comb a saved parse result with zero credits. This is
+the first shipped piece of the hash-stamped `mirror/` step of the
+probe → plan → pass → mirror arc — see [`docs/goal.txt`](./docs/goal.txt).
 
 ### probe — recursively inventory a directory (zero credits)
 

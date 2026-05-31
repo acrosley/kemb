@@ -15,6 +15,7 @@ This skill exposes four single-document facets backed by LlamaCloud APIs, plus a
 | `extract` | Pull structured JSON against a JSON Schema             | `references/extract.md`  |
 | `classify`| Assign one of N labels with confidence + reasoning     | `references/classify.md` |
 | `split`   | Break a long doc into typed sections by category       | `references/split.md`    |
+| `stemma`  | Comb a doc into a provenance-stamped mirror; `cite` resolves quotes | `references/stemma.md` |
 | `probe`   | Inventory a directory locally — size, type, support    | `references/probe.md`    |
 
 `probe` is the first shipped step of the "kembing" arc — probe → plan → pass → mirror. It walks a directory and reports per-file metadata with zero credits and no network call, so you can feel out a pile before parsing it. The rest of that arc (draft a plan, execute a pass, render into a markdown mirror with hash-stamped frontmatter and a queryable manifest) is the project's direction — see `docs/goal.txt` — and is still in progress. For now, route each request to the matching facet.
@@ -56,6 +57,7 @@ Always pass `--auto-install` from the shim path — it `pip install`s `llama-clo
 - "Pull these specific fields out as JSON" / "give me structured data" → `extract` (`references/extract.md`)
 - "Classify / categorize / route this document by type" → `classify` (`references/classify.md`)
 - "Split this long document into intro / methodology / results / sections" → `split` (`references/split.md`)
+- "Parse this so I can cite it / I need page-level provenance / where did this sentence come from?" → `stemma` to build a provenance-stamped mirror, then `cite` to resolve a verbatim quote (`references/stemma.md`)
 - "What's in this folder? / inventory a directory / scope a batch before parsing / which of these files can LlamaCloud take?" → `probe` (`references/probe.md`)
 - "What does each facet cost? / how does v2 of the API work?" → `references/rest_api.md`
 - Setup failures, weird response shapes, network blocks, encrypted PDFs → `references/troubleshooting.md`
@@ -63,5 +65,5 @@ Always pass `--auto-install` from the shim path — it `pip install`s `llama-clo
 ## What this skill does NOT do
 
 - Embedding or vector storage — pair with a separate RAG pipeline.
-- End-to-end corpus orchestration (plan / pass / mirror) — `probe` ships today as the local first step, but automated planning, batch execution, and the hash-stamped markdown mirror are still in progress; track them in `docs/goal.txt`.
+- End-to-end corpus orchestration (plan / pass / mirror) — `probe` scopes a directory and `stemma` builds a hash-stamped mirror for a single document today, but automated planning and batch execution across a whole corpus are still in progress; track them in `docs/goal.txt`.
 - Store API keys — keys come from the environment, every run.

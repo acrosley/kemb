@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `stemma` subcommand: comb a document into a provenance-stamped markdown
+  **mirror**. Every block (a "strand") is stamped with `{source, page, sha256,
+  char span, bbox?}` and written to `mirror/<doc>.md` (anchors inline as HTML
+  comments) plus a `mirror/<doc>.stemma.json` manifest. Parses live, or combs a
+  saved LlamaParse result with `--from-parse-json` for a zero-credit, offline
+  build. The build is deterministic so the hashes are stable provenance. First
+  shipped piece of the "mirror with hash-stamped frontmatter" step of the
+  probe → plan → pass → mirror arc.
+- `cite` subcommand: resolve a verbatim quote against a `stemma` manifest and
+  print where it came from — source, page, precise character span within the
+  page, and bounding box when available. Whitespace-insensitive (line wrapping
+  doesn't break a citation); exits non-zero when the quote isn't found.
+- `skills/kemb/references/stemma.md` and a routing entry in `SKILL.md` for the
+  new provenance facet; `examples/parse_results/sample_agreement.parse.json`
+  fixture for the offline `--from-parse-json` path.
+
 ## [0.6.0] - 2026-05-30
 
 ### Changed

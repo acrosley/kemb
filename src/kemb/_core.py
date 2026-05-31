@@ -6,6 +6,8 @@ Subcommands:
     extract   — pull structured JSON out of a document against a schema
     classify  — categorize a document into one of a defined set of classes
     split     — break a document into sections (by category or strategy)
+    stemma    — comb a document into a provenance-stamped markdown mirror
+    cite      — resolve a verbatim quote to its source page via a manifest
     probe     — recursively scan a directory and report file metadata
     doctor    — preflight checks (Python, deps, API key, reachability)
 
@@ -21,14 +23,15 @@ import argparse
 import sys
 from importlib.metadata import PackageNotFoundError, version as _pkg_version
 
-from . import _classify, _doctor, _extract, _parse, _probe, _split
+from . import _cite, _classify, _doctor, _extract, _parse, _probe, _split, _stemma
 
 try:
     __version__ = _pkg_version("kemb")
 except PackageNotFoundError:
     __version__ = "0.0.0+unknown"
 
-SUBCOMMANDS = ("parse", "extract", "classify", "split", "probe", "doctor")
+SUBCOMMANDS = ("parse", "extract", "classify", "split", "stemma", "cite",
+               "probe", "doctor")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -63,6 +66,8 @@ def build_parser() -> argparse.ArgumentParser:
     _extract.add_subparser(subparsers)
     _classify.add_subparser(subparsers)
     _split.add_subparser(subparsers)
+    _stemma.add_subparser(subparsers)
+    _cite.add_subparser(subparsers)
     _probe.add_subparser(subparsers)
     _doctor.add_subparser(subparsers)
     return p
