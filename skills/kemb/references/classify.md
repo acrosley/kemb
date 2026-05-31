@@ -14,7 +14,7 @@ Same auth as parse / extract: `LLAMA_CLOUD_API_KEY` exported in the shell.
 test -n "$LLAMA_CLOUD_API_KEY" && echo "key is set" || echo "MISSING: export LLAMA_CLOUD_API_KEY=llx-..."
 ```
 
-The bundled script accepts `--auto-install` to `pip install llama-cloud` on first run. Always pass it from this skill.
+The bundled shim accepts `--auto-install` to `pip install llama-cloud` on first run. Always pass it from this skill.
 
 ## Rules
 
@@ -36,7 +36,7 @@ For repeated workflows, save the configuration in LlamaCloud and pass `--configu
 ## Quick start
 
 ```bash
-python scripts/run_classify.py <input_file> --auto-install \
+python scripts/kemb_cli.py classify <input_file> --auto-install \
     --rules @rules.json \
     --output result.json
 ```
@@ -88,7 +88,7 @@ job = client.classify.create(
 # Poll client.classify.get(job.id) until status == COMPLETED.
 ```
 
-The SDK does **not** ship a `wait_for_completion` helper for classify (it does for parse/extract/split). Poll `client.classify.get(job_id)` manually, or use the bundled script — it handles polling.
+The SDK does **not** ship a `wait_for_completion` helper for classify (it does for parse/extract/split). Poll `client.classify.get(job_id)` manually, or use the bundled shim — it handles polling.
 
 ## REST API
 

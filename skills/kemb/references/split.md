@@ -16,7 +16,7 @@ Same auth as the rest of the suite: `LLAMA_CLOUD_API_KEY` exported in the shell.
 test -n "$LLAMA_CLOUD_API_KEY" && echo "key is set" || echo "MISSING: export LLAMA_CLOUD_API_KEY=llx-..."
 ```
 
-The bundled script accepts `--auto-install` to `pip install llama-cloud` on first run. Always pass it from this skill.
+The bundled shim accepts `--auto-install` to `pip install llama-cloud` on first run. Always pass it from this skill.
 
 ## Categories
 
@@ -39,7 +39,7 @@ For repeated workflows, save the configuration in LlamaCloud and pass `--configu
 ## Quick start
 
 ```bash
-python scripts/run_split.py <input_file> --auto-install \
+python scripts/kemb_cli.py split <input_file> --auto-install \
     --categories @cats.json \
     --output result.json
 ```
@@ -70,7 +70,7 @@ The response contains a list of segments. Each segment carries the matched categ
 }
 ```
 
-(Exact field names may evolve while the API is in beta — the bundled script preserves whatever the server returns.)
+(Exact field names may evolve while the API is in beta — the bundled shim preserves whatever the server returns.)
 
 ## SDK usage (custom pipelines)
 

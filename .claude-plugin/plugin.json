@@ -1,6 +1,6 @@
 {
   "name": "kemb",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Kemb combs document corpora into agent-ready form. Point Claude at a directory of PDFs; probe the tree, draft a corpus plan (inventory, taxonomy, cost), and on approval execute a pass that classifies, routes, parses, and renders documents into a markdown mirror with hash-stamped frontmatter and a queryable manifest. Single-file parse, extract, classify, and split remain as facets of the kembing process, powered by LlamaCloud where needed.",
   "author": {
     "name": "Andrew Crosley",
