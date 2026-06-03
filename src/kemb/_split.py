@@ -152,15 +152,23 @@ def _extract_result(payload):
             candidate = v
             break
     if candidate is None:
+        # No recognized result key. Mirror extract/classify and fail loud
+        # rather than silently emitting the raw job envelope (status, ids,
+        # timestamps) as a success — that would look like a clean split that
+        # actually produced no segments. Beta shapes drift, so list what we
+        # did see to make the next fix obvious.
         if hasattr(payload, "model_dump"):
-            candidate = payload.model_dump()
-        elif hasattr(payload, "dict"):
-            try:
-                candidate = payload.dict()
-            except Exception:
-                candidate = payload
+            visible = payload.model_dump()
+        elif isinstance(payload, dict):
+            visible = payload
         else:
-            candidate = payload
+            visible = {"repr": repr(payload)}
+        keys = list(visible)[:20] if isinstance(visible, dict) else visible
+        err(
+            "could not locate split result in the completed job "
+            f"(looked for result/split/segments/sections). Visible fields: {keys}",
+            code=3,
+        )
 
     if hasattr(candidate, "model_dump"):
         candidate = candidate.model_dump()

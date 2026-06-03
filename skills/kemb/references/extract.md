@@ -16,7 +16,7 @@ test -n "$LLAMA_CLOUD_API_KEY" && echo "key is set" || echo "MISSING: export LLA
 
 If missing, ask the user to set it in their shell or host environment. Get a key at <https://cloud.llamaindex.ai/api-key>. Do not prompt for the key in chat.
 
-The bundled script accepts `--auto-install`, which `pip install`s `llama-cloud` on first run if it isn't already importable. Always pass `--auto-install` from this skill.
+The bundled shim accepts `--auto-install`, which `pip install`s `llama-cloud` on first run if it isn't already importable. Always pass `--auto-install` from this skill.
 
 ## Schema
 
@@ -51,7 +51,7 @@ For repeated runs against the same shape, create a saved **configuration / extra
 ## Quick start
 
 ```bash
-python scripts/run_extract.py <input_file> --auto-install \
+python scripts/kemb_cli.py extract <input_file> --auto-install \
     --schema @schema.json \
     --output result.json
 ```
@@ -87,7 +87,8 @@ result = client.extract.run(
         },
     },
 )
-# result.data — the extracted JSON object
+# result.extract_result — the extracted JSON object
+# (older / REST payloads expose it as result.data instead)
 ```
 
 `extract.run(...)` is a one-shot helper that internally calls `create()` + `wait_for_completion()` + `get()`. If you need finer control (custom backoff, partial progress, etc.) call those primitives directly.

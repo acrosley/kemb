@@ -18,9 +18,9 @@ test -n "$LLAMA_CLOUD_API_KEY" && echo "key is set" || echo "MISSING: export LLA
 
 If it's missing, ask the user to set it in their shell or host environment before proceeding. Do not prompt for the key in chat — that puts secrets in transcripts. Get a key at <https://cloud.llamaindex.ai/api-key>.
 
-The bundled script (`scripts/parse_document.py`) accepts `--auto-install`, which will `pip install llama-cloud` on first run if it isn't already importable. Always pass `--auto-install` from this skill so the user doesn't have to manage Python deps manually.
+The bundled shim (`scripts/kemb_cli.py`) accepts `--auto-install`, which will `pip install llama-cloud` on first run if it isn't already importable. Always pass `--auto-install` from this skill so the user doesn't have to manage Python deps manually.
 
-If outbound HTTPS to `api.cloud.llamaindex.ai` is blocked (e.g. Cowork sandbox without allowlist), surface the upstream error verbatim and direct the user to **Settings → Capabilities → network allowlist**. Running the script outside the sandbox is always a fallback.
+If outbound HTTPS to `api.cloud.llamaindex.ai` is blocked (e.g. Cowork sandbox without allowlist), surface the upstream error verbatim and direct the user to **Settings → Capabilities → network allowlist**. Running the shim outside the sandbox is always a fallback.
 
 ## Cost model
 
@@ -37,14 +37,14 @@ Count pages with `pdfinfo "$file"` or `pypdf` first and report `pages × tier_mu
 
 ## Versioning
 
-v2 takes a `version` parameter on every parse request. Use `"latest"` during interactive use; pin to a dated version (e.g. `"2026-04-09"`) for reproducible production runs. The bundled script defaults to `"latest"`.
+v2 takes a `version` parameter on every parse request. Use `"latest"` during interactive use; pin to a dated version (e.g. `"2026-04-09"`) for reproducible production runs. The bundled shim defaults to `"latest"`.
 
 ## Quick start
 
-Run the bundled script from the skill directory:
+Run the bundled shim from the skill directory:
 
 ```bash
-python scripts/parse_document.py <input_file> --auto-install \
+python scripts/kemb_cli.py parse <input_file> --auto-install \
     --output <output_path> --result-type markdown --tier cost_effective
 ```
 
@@ -61,11 +61,11 @@ Flags:
 
 > v2 auto-detects document language. The v1 `input_options.language` field was removed by LlamaIndex and is no longer accepted — sending it produces a `422 extra_forbidden` error.
 
-If the SDK isn't installable for some reason, the script automatically falls back to REST using just the `requests` library.
+If the SDK isn't installable for some reason, the shim automatically falls back to REST using just the `requests` library.
 
 ## SDK usage (for custom pipelines)
 
-When the bundled script doesn't fit (batch jobs, custom pre/post-processing, integration into a larger pipeline), use the SDK directly:
+When the bundled shim doesn't fit (batch jobs, custom pre/post-processing, integration into a larger pipeline), use the SDK directly:
 
 ```python
 from llama_cloud import LlamaCloud
@@ -101,7 +101,7 @@ The full REST reference is in `references/rest_api.md`. The flow: `POST /api/v2/
 
 ## Output handling
 
-After parsing, save the result somewhere the user can find it. The bundled script writes to the `--output` path automatically. For RAG/embedding workflows, iterate over `result.markdown.pages` for per-page chunks instead of joining — or parse first and chunk separately with the user's preferred chunker.
+After parsing, save the result somewhere the user can find it. The bundled shim writes to the `--output` path automatically. For RAG/embedding workflows, iterate over `result.markdown.pages` for per-page chunks instead of joining — or parse first and chunk separately with the user's preferred chunker.
 
 ## Troubleshooting
 

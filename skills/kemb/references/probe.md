@@ -46,18 +46,36 @@ kemb probe ./inbox --json > inventory.json      # machine-readable inventory
 
 ```json
 {
-  "root": "./inbox",
+  "generated_at": "2026-05-12T09:31:04Z",
   "files": [
     {
-      "path": "contracts/acme-2025.pdf",
+      "path": "inbox/contracts/acme-2025.pdf",
+      "relative": "contracts/acme-2025.pdf",
+      "name": "acme-2025.pdf",
+      "extension": ".pdf",
       "size": 184320,
-      "mtime": "2026-05-12T09:31:04Z",
-      "ext": "pdf",
-      "mime": "application/pdf",
-      "supported": true
+      "size_human": "180.0 KB",
+      "mtime": 1747042264.0,
+      "mtime_iso": "2026-05-12T09:31:04Z",
+      "mime_type": "application/pdf",
+      "supported": true,
+      "readable": true,
+      "error": null
     }
   ],
-  "summary": { "files": 1, "bytes": 184320, "supported": 1 }
+  "summary": {
+    "total_files": 1,
+    "total_bytes": 184320,
+    "total_size_human": "180.0 KB",
+    "supported_files": 1,
+    "supported_bytes": 184320,
+    "supported_size_human": "180.0 KB",
+    "unreadable": 0,
+    "truncated": false,
+    "truncated_limit": null,
+    "walk_errors": [],
+    "by_extension": { ".pdf": { "count": 1, "bytes": 184320 } }
+  }
 }
 ```
 

@@ -1,6 +1,6 @@
 # LlamaParse REST API reference (v2)
 
-Use this when the bundled `parse_document.py` script doesn't fit — for example, integrating LlamaParse into a non-Python service, batching at scale, or debugging an SDK response that looks wrong.
+Use this when the bundled shim (`scripts/kemb_cli.py`) doesn't fit — for example, integrating LlamaParse into a non-Python service, batching at scale, or debugging an SDK response that looks wrong.
 
 This reference covers **API v2 only**. v1 endpoints are out of scope for this skill.
 

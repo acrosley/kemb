@@ -45,8 +45,6 @@ kemb parse ./contract.pdf      # → contract.md
 That's it. `extract`, `classify`, and `split` follow the same shape — see
 [Real examples](#real-examples) below.
 
-> screenshot/asciinema goes here
-
 ## What this is for
 
 - **Knowledge workers and analysts** drowning in PDFs, scans, and Office docs

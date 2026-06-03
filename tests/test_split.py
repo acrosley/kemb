@@ -98,21 +98,22 @@ class TestExtractResult:
         obj = SimpleNamespace(result={"sections": []})
         assert json.loads(_split._extract_result(obj)) == {"sections": []}
 
-    def test_pydantic_style_model_dump_on_payload(self):
-        """When no result/split/segments key, fall back to dumping payload."""
+    def test_no_known_key_on_object_exits(self):
+        """An object with no result/split/segments/sections must fail loud,
+        not silently emit the dumped envelope as a successful split."""
 
         class _PydLike:
             def model_dump(self):
                 return {"top-level": True, "sections": []}
 
-        out = _split._extract_result(_PydLike())
-        assert json.loads(out) == {"top-level": True, "sections": []}
+        with pytest.raises(SystemExit):
+            _split._extract_result(_PydLike())
 
-    def test_plain_dict_passthrough_when_no_known_key(self):
-        """A bare dict with no recognized envelope key should be returned as-is."""
-        payload = {"job_id": "abc", "other": "data"}
-        out = _split._extract_result(payload)
-        assert json.loads(out) == payload
+    def test_plain_dict_without_known_key_exits(self):
+        """A bare job envelope (status/ids only, no result) must fail loud
+        rather than be returned as if it were the split output."""
+        with pytest.raises(SystemExit):
+            _split._extract_result({"job_id": "abc", "other": "data"})
 
     def test_pydantic_style_dump_inside_envelope(self):
         class _PydLike:
