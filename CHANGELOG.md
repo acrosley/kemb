@@ -10,10 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `probe --sample`: extracts the first words of every document locally (PDF
   via `pypdf`, DOCX/PPTX/XLSX/ODT/ODS/ODP via their XML, text/HTML/CSV
-  directly) and renders a single `===document===`-separated corpus sample —
-  per-file metadata line (size, PDF page count, mtime, type, text status)
-  followed by up to `--sample-words` words of content. PDFs with no text
-  layer are flagged as likely scans needing an OCR-capable parse tier.
+  directly) and renders a single corpus sample of XML-tagged `<document>`
+  blocks — labeled metadata attributes (path, size, PDF page count, mtime,
+  type, text status) with up to `--sample-words` words of content as the
+  body. PDFs with no text layer collapse to a self-closing tag whose `note`
+  flags them as likely scans needing an OCR-capable parse tier.
   `--sample-budget` caps total words corpus-wide (files past the budget keep
   their inventory line; only sample text is skipped); `--sample-pages`
   bounds how many PDF pages are read. Combines with `--json` to embed

@@ -8,8 +8,8 @@ for batch jobs and a companion to `--dry-run`.
 Output is a human-readable table by default; `--json` emits a single JSON
 object so downstream tools can pipe results into a shell loop. `--sample`
 additionally extracts the first words of each document locally and renders a
-===document===-separated corpus sample an agent can read in one pass to
-triage a large multi-directory corpus before spending parse credits.
+corpus sample of XML-tagged <document> blocks an agent can read in one pass
+to triage a large multi-directory corpus before spending parse credits.
 
 Exit codes:
     0 — directory scanned (even if it contained zero files)
@@ -202,9 +202,10 @@ def add_subparser(subparsers):
         "--sample",
         action="store_true",
         help="Extract the first words of each document locally and emit a "
-             "===document===-separated corpus sample (instead of the table) "
-             "so an agent can triage the corpus in one read. PDFs also gain "
-             "page counts and scan detection. Still zero network calls.",
+             "corpus sample of XML-tagged <document> blocks (instead of the "
+             "table) so an agent can triage the corpus in one read. PDFs "
+             "also gain page counts and scan detection. Still zero network "
+             "calls.",
     )
     p.add_argument(
         "--sample-words",
@@ -638,60 +639,84 @@ def attach_samples(entries, *, max_words, pdf_pages, budget):
     return stats
 
 
-def _sample_header_line(entry) -> str:
-    """The metadata comment under each ===document=== separator."""
-    parts = [entry["size_human"]]
+def _xml_attr(value) -> str:
+    """Escape a string for use inside a double-quoted XML attribute."""
+    return (
+        str(value)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
+def _document_tag(entry) -> str:
+    """The opening (or self-closing) <document> tag for one file.
+
+    Metadata travels as labeled attributes rather than a positional comment
+    line so the consuming agent never has to guess which field is which.
+    """
+    attrs = [("path", entry["relative"]), ("size", entry["size_human"])]
     if entry.get("pages") is not None:
-        parts.append(f"{entry['pages']} pages")
-    parts.append(entry["mtime_iso"] or "?")
-    parts.append(entry["extension"] or "(no ext)")
-    status = entry["sample_status"]
-    if status == STATUS_OK:
-        parts.append("text: ok")
-    else:
-        detail = entry.get("sample_detail")
-        parts.append(f"text: {status}" + (f" ({detail})" if detail else ""))
-    return "# " + " | ".join(parts)
+        attrs.append(("pages", entry["pages"]))
+    attrs.append(("modified", entry["mtime_iso"] or "?"))
+    attrs.append(("type", entry["extension"] or "none"))
+    attrs.append(("text", entry["sample_status"]))
+    if entry["sample_status"] != STATUS_OK and entry.get("sample_detail"):
+        attrs.append(("note", entry["sample_detail"]))
+    rendered = " ".join(f'{k}="{_xml_attr(v)}"' for k, v in attrs)
+    # No sample text → self-closing tag; the note attribute says why.
+    return f"<document {rendered}>" if entry["sample"] else f"<document {rendered}/>"
 
 
 def render_sample(entries, summary, stats) -> str:
-    """Render the ===document===-separated corpus sample.
+    """Render the corpus sample as XML-tagged document blocks.
 
-    One block per file: separator + path, a metadata comment line, then the
-    sampled words. Designed to be read whole by an agent triaging the corpus
-    — doc types, scan-vs-text, parse tiers — without any uploads.
+    One <document> block per file — metadata as attributes, sampled words as
+    the body (self-closing when there's no text). XML-style tags are the
+    structure LLMs parse most reliably, which matters because the primary
+    consumer is an agent reading the whole file to triage the corpus — doc
+    types, scan-vs-text, parse tiers — without any uploads.
     """
-    lines = [
-        "# corpus sample — generated "
-        + datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        f"# files: {summary['total_files']} | "
-        f"total size: {summary['total_size_human']} | "
-        f"sampled words: {stats['total_words']}",
-    ]
-    status_parts = [
-        f"{status}: {count}"
-        for status, count in sorted(stats["by_status"].items())
-    ]
-    if status_parts:
-        lines.append("# sample status — " + " | ".join(status_parts))
+    status_attr = ", ".join(
+        f"{status}: {count}" for status, count in sorted(stats["by_status"].items())
+    )
+    opening = (
+        "<corpus_sample"
+        f' generated="{datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}"'
+        f' files="{summary["total_files"]}"'
+        f' total_size="{_xml_attr(summary["total_size_human"])}"'
+        f' sampled_words="{stats["total_words"]}"'
+        f' status="{_xml_attr(status_attr)}"'
+        ">"
+    )
+    lines = [opening]
     if stats["no_text_files"]:
         lines.append(
-            f"# {len(stats['no_text_files'])} PDF(s) have no text layer "
-            "(likely scans; route to an OCR-capable parse tier)"
+            f"<!-- {len(stats['no_text_files'])} PDF(s) have no text layer "
+            "(likely scans; route to an OCR-capable parse tier) -->"
         )
 
     for entry in entries:
         lines.append("")
-        lines.append(f"===document=== {entry['relative']}")
-        lines.append(_sample_header_line(entry))
+        lines.append(_document_tag(entry))
         if entry["sample"]:
-            lines.append(textwrap.fill(entry["sample"], width=100))
-        else:
-            detail = entry.get("sample_detail") or entry["sample_status"]
-            lines.append(f"[{detail}]")
+            # Neutralize a literal close tag inside sampled content so a
+            # document can't terminate its own block early.
+            text = entry["sample"].replace("</document", "</ document")
+            lines.append(textwrap.fill(text, width=100))
+            lines.append("</document>")
 
     lines.append("")
-    lines.append(_summary_block(summary))
+    lines.append("<summary>")
+    # The shared summary block opens with a "summary:" heading — redundant
+    # inside the <summary> tag.
+    block = _summary_block(summary)
+    if block.startswith("summary:\n"):
+        block = block[len("summary:\n"):]
+    lines.append(block)
+    lines.append("</summary>")
+    lines.append("</corpus_sample>")
     return "\n".join(lines)
 
 

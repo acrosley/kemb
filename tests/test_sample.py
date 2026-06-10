@@ -208,16 +208,33 @@ class TestProbeSampleCli:
         rc = _core.main(["probe", str(root), "--sample"])
         assert rc == 0
         out = capsys.readouterr().out
-        assert out.count("===document===") == 3
-        assert "===document=== smith/complaint.pdf" in out
+        assert out.count("<document ") == 3
+        assert '<document path="smith/complaint.pdf"' in out
         assert "Plaintiff alleges fraud" in out
         assert "Deposition scheduled for May" in out
-        # The scan is flagged inline and in the header roll-up.
-        assert "no text layer" in out
-        assert "route to an OCR-capable parse tier" in out
-        # Per-document metadata line is present.
-        assert "1 pages" in out
-        assert "text: ok" in out
+        # Docs with sample text get an open/close pair; the scan (no text)
+        # collapses to a self-closing tag with the reason in `note`.
+        assert out.count("</document>") == 2
+        assert 'text="no-text"' in out
+        assert "OCR-capable parse tier" in out
+        # Metadata travels as labeled attributes.
+        assert 'pages="1"' in out
+        assert 'text="ok"' in out
+        # Envelope: header attributes + summary block.
+        assert '<corpus_sample generated="' in out
+        assert 'files="3"' in out
+        assert out.rstrip().endswith("</corpus_sample>")
+
+    def test_sample_escapes_close_tag_in_content(self, tmp_path: Path, capsys):
+        root = tmp_path / "docs"
+        root.mkdir()
+        (root / "sneaky.txt").write_text("before </document> after")
+        rc = _core.main(["probe", str(root), "--sample"])
+        assert rc == 0
+        out = capsys.readouterr().out
+        # The document cannot terminate its own block early.
+        assert out.count("</document>") == 1
+        assert "</ document>" in out
 
     def test_sample_json_includes_fields(self, tmp_path: Path, capsys):
         root = self._corpus(tmp_path)
@@ -238,7 +255,7 @@ class TestProbeSampleCli:
         )
         assert rc == 0
         assert out_file.exists()
-        assert "===document===" in out_file.read_text()
+        assert "<document " in out_file.read_text()
 
     def test_plain_probe_has_no_sample_fields(self, tmp_path: Path, capsys):
         root = self._corpus(tmp_path)

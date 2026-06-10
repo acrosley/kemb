@@ -179,7 +179,7 @@ files and directories are skipped unless `--include-hidden` is passed.
 #### probe --sample — corpus triage in one text file (zero credits)
 
 ```bash
-llamaparse probe ./cases --sample                            # ===document=== separated sample
+llamaparse probe ./cases --sample                            # XML-tagged corpus sample
 llamaparse probe ./cases --sample --output corpus_sample.txt # write it to a file
 llamaparse probe ./cases --sample --sample-words 200         # more words per doc
 llamaparse probe ./cases --sample --sample-budget 20000      # tighter corpus-wide cap
@@ -188,13 +188,26 @@ llamaparse probe ./cases --sample --json                     # samples embedded 
 
 `--sample` extracts the first words of every document **locally** — PDFs via
 `pypdf`, Office/OpenDocument files via their XML, text/HTML directly — and
-renders one `===document===`-separated text file: a separator and metadata
-line per document (size, page count, mtime, type, text status), followed by
-up to `--sample-words` words of its content. An agent can read that single
+renders one text file of XML-tagged blocks (the structure LLMs parse most
+reliably): a `<document>` tag per file carrying labeled metadata attributes
+(`path`, `size`, `pages`, `modified`, `type`, `text` status), with up to
+`--sample-words` words of content as the body. An agent can read that single
 file and weigh an entire multi-directory case corpus — what each document is,
-which are scans (PDFs with no text layer are flagged for OCR-capable parse
-tiers), what to parse now versus defer — without uploading anything or
-running a per-file model pass.
+which are scans (PDFs with no text layer collapse to a self-closing tag with
+a `note` flagging them for OCR-capable parse tiers), what to parse now versus
+defer — without uploading anything or running a per-file model pass.
+
+```xml
+<corpus_sample generated="2026-06-10T01:52:23Z" files="4" total_size="4.3 KB"
+               sampled_words="69" status="no-text: 1, ok: 3">
+<document path="smith/complaint.pdf" size="2.2 KB" pages="4" modified="..." type=".pdf" text="ok">
+IN THE DISTRICT COURT Plaintiff John Smith alleges breach of contract and fraud ...
+</document>
+<document path="smith/exhibit-a.pdf" size="1.7 KB" pages="12" modified="..." type=".pdf"
+          text="no-text" note="no text layer — likely a scan; needs an OCR-capable parse tier"/>
+...
+</corpus_sample>
+```
 
 `--sample-budget` caps total sampled words corpus-wide so the output stays
 readable in one context window; files past the budget keep their inventory
@@ -270,8 +283,8 @@ header/footer artifacts so the resulting markdown is paste-ready.
 llamaparse probe ./case-files --sample --output corpus_sample.txt
 ```
 
-One zero-credit command produces a `===document===`-separated sample of the
-whole tree — first words, page counts, and scan flags for every document.
+One zero-credit command produces an XML-tagged sample of the whole tree —
+first words, page counts, and scan flags for every document.
 Hand `corpus_sample.txt` to Claude (or read it yourself) to decide doc types,
 parse tiers, and priorities, then run `parse` / `extract` over only the files
 that earn it.
