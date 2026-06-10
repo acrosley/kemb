@@ -650,6 +650,21 @@ def _xml_attr(value) -> str:
     )
 
 
+def _xml_text(value) -> str:
+    """Escape body text so sampled content cannot alter the wrapper structure.
+
+    Without this, a document whose text contains `<document .../>` (or any
+    markup) could inject spoofed entries into the corpus sample — which an
+    agent may be using to decide what to parse and spend credits on.
+    """
+    return (
+        str(value)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+
 def _document_tag(entry) -> str:
     """The opening (or self-closing) <document> tag for one file.
 
@@ -701,10 +716,7 @@ def render_sample(entries, summary, stats) -> str:
         lines.append("")
         lines.append(_document_tag(entry))
         if entry["sample"]:
-            # Neutralize a literal close tag inside sampled content so a
-            # document can't terminate its own block early.
-            text = entry["sample"].replace("</document", "</ document")
-            lines.append(textwrap.fill(text, width=100))
+            lines.append(textwrap.fill(_xml_text(entry["sample"]), width=100))
             lines.append("</document>")
 
     lines.append("")
