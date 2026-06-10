@@ -107,7 +107,7 @@ class ProbeReport(TypedDict):
     files: List[FileInfo]
     summary: ProbeSummary
 
-# File formats LlamaCloud's document APIs (parse/extract/classify/split) will
+# File formats LlamaCloud's document APIs (parse/classify) will
 # accept. Kept as a conservative set drawn from the public LlamaParse
 # supported-formats list — formats outside this set still upload, but may be
 # rejected server-side, so probe flags them as "unsupported" upfront.
@@ -147,7 +147,7 @@ def add_subparser(subparsers):
             "Walk a directory and report each file's size, mtime, extension, "
             "and whether LlamaCloud is likely to accept it. Spends zero "
             "credits — useful for previewing batch jobs and pairing with "
-            "`--dry-run` on parse/extract/classify/split."
+            "`--dry-run` on parse/classify."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(

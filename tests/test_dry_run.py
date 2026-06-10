@@ -1,4 +1,4 @@
-"""Tests for ``--dry-run`` across parse / extract / classify / split.
+"""Tests for ``--dry-run`` across parse / classify.
 
 These tests verify that dry-run never touches the network. The ``_ban_network``
 fixture below makes that a hard assertion: every ``requests`` HTTP verb is
@@ -47,34 +47,11 @@ def fake_pdf(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def schema_file(tmp_path: Path) -> Path:
-    p = tmp_path / "schema.json"
-    p.write_text(json.dumps({
-        "type": "object",
-        "properties": {
-            "vendor": {"type": "string"},
-            "total": {"type": "number"},
-        },
-    }), encoding="utf-8")
-    return p
-
-
-@pytest.fixture
 def rules_file(tmp_path: Path) -> Path:
     p = tmp_path / "rules.json"
     p.write_text(json.dumps([
         {"type": "invoice", "description": "A bill"},
         {"type": "contract", "description": "A legal agreement"},
-    ]), encoding="utf-8")
-    return p
-
-
-@pytest.fixture
-def categories_file(tmp_path: Path) -> Path:
-    p = tmp_path / "cats.json"
-    p.write_text(json.dumps([
-        {"name": "intro", "description": "Opening summary"},
-        {"name": "body", "description": "Main content"},
     ]), encoding="utf-8")
     return p
 
@@ -94,12 +71,12 @@ class TestRenderDryRun:
         assert out.endswith("no upload, no job, no credits spent.")
 
     def test_none_renders_as_placeholder(self):
-        out = _common.render_dry_run("extract", {"project-id": None})
+        out = _common.render_dry_run("classify", {"project-id": None})
         assert "(none)" in out
 
     def test_long_dict_truncated(self):
         big = {"k": "v" * 1000}
-        out = _common.render_dry_run("extract", {"configuration": big})
+        out = _common.render_dry_run("classify", {"configuration": big})
         # Truncation should keep the line readable.
         assert "..." in out
 
@@ -137,35 +114,6 @@ class TestParseDryRun:
         assert "REST" in out
 
 
-class TestExtractDryRun:
-    def test_emits_plan_with_schema_summary(self, fake_pdf, schema_file, capsys):
-        rc = _core.main([
-            "extract", str(fake_pdf),
-            "--schema", f"@{schema_file}",
-            "--dry-run",
-        ])
-        assert rc == 0
-        out = capsys.readouterr().out
-        assert "[dry-run] kemb extract" in out
-        # Schema summary should mention at least one of its properties.
-        assert "vendor" in out or "total" in out
-        assert "no upload" in out
-
-    def test_missing_schema_still_errors(self, fake_pdf):
-        with pytest.raises(SystemExit):
-            _core.main(["extract", str(fake_pdf), "--dry-run"])
-
-    def test_configuration_id_skips_schema_requirement(self, fake_pdf, capsys):
-        rc = _core.main([
-            "extract", str(fake_pdf),
-            "--configuration-id", "cfg-abc",
-            "--dry-run",
-        ])
-        assert rc == 0
-        out = capsys.readouterr().out
-        assert "cfg-abc" in out
-
-
 class TestClassifyDryRun:
     def test_emits_plan_with_rule_labels(self, fake_pdf, rules_file, capsys):
         rc = _core.main([
@@ -183,22 +131,3 @@ class TestClassifyDryRun:
     def test_missing_rules_still_errors(self, fake_pdf):
         with pytest.raises(SystemExit):
             _core.main(["classify", str(fake_pdf), "--dry-run"])
-
-
-class TestSplitDryRun:
-    def test_emits_plan_with_category_names(self, fake_pdf, categories_file, capsys):
-        rc = _core.main([
-            "split", str(fake_pdf),
-            "--categories", f"@{categories_file}",
-            "--splitting-strategy", "semantic",
-            "--dry-run",
-        ])
-        assert rc == 0
-        out = capsys.readouterr().out
-        assert "[dry-run] kemb split" in out
-        assert "intro" in out
-        assert "semantic" in out
-
-    def test_missing_categories_still_errors(self, fake_pdf):
-        with pytest.raises(SystemExit):
-            _core.main(["split", str(fake_pdf), "--dry-run"])

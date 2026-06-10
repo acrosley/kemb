@@ -19,7 +19,7 @@ class TestNormalizeArgv:
     def test_help_flags_pass_through(self, flag):
         assert _core._normalize_argv([flag]) == [flag]
 
-    @pytest.mark.parametrize("cmd", ["parse", "extract", "classify", "split"])
+    @pytest.mark.parametrize("cmd", ["parse", "classify"])
     def test_explicit_subcommand_passes_through(self, cmd):
         assert _core._normalize_argv([cmd, "./file.pdf"]) == [cmd, "./file.pdf"]
 
@@ -50,7 +50,7 @@ class TestBuildParser:
         assert parser.prog == "kemb"
 
     def test_all_subcommands_registered(self):
-        """parse / extract / classify / split must all be selectable subcommands."""
+        """parse / classify must all be selectable subcommands."""
         parser = _core.build_parser()
 
         choices = None
@@ -60,7 +60,7 @@ class TestBuildParser:
                 break
 
         assert choices is not None, "no subparser action found"
-        for cmd in ("parse", "extract", "classify", "split"):
+        for cmd in ("parse", "classify"):
             assert cmd in choices, f"{cmd!r} subparser missing"
 
 
@@ -72,7 +72,7 @@ class TestBuildParser:
 class TestMainHelp:
     """``kemb <cmd> --help`` should exit with code 0 for every subcommand."""
 
-    @pytest.mark.parametrize("cmd", ["parse", "extract", "classify", "split"])
+    @pytest.mark.parametrize("cmd", ["parse", "classify"])
     def test_subcommand_help_exits_cleanly(self, cmd, capsys):
         with pytest.raises(SystemExit) as exc_info:
             _core.main([cmd, "--help"])

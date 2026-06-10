@@ -1,6 +1,6 @@
 # kemb troubleshooting
 
-Shared troubleshooting for all `kemb` facets, which target the LlamaCloud APIs (LlamaParse / LlamaExtract / LlamaClassify v2, LlamaSplit v1 beta). When something goes wrong, surface the upstream error to the user verbatim before guessing — the remediation almost always lives in the response body. Most sections below use parse as the worked example, but the auth, network, install, rate-limit, and shape-drift advice applies to every facet.
+Shared troubleshooting for all `kemb` facets, which target the LlamaCloud APIs (LlamaParse / LlamaClassify v2). When something goes wrong, surface the upstream error to the user verbatim before guessing — the remediation almost always lives in the response body. Most sections below use parse as the worked example, but the auth, network, install, rate-limit, and shape-drift advice applies to every facet.
 
 ## "LLAMA_CLOUD_API_KEY is not set"
 

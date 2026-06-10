@@ -6,7 +6,7 @@ Unlike the other facets, `probe` is **local-only and free**: it makes no network
 
 ## When to use
 
-Use it when the user wants to **see or scope a directory** before processing it — "what's in this folder?", "inventory my inbox", "how many PDFs are in here and will LlamaCloud take them?", "scope this batch before I parse it". It answers those questions instantly and for free, then hands off to `parse` / `extract` / `classify` / `split` for the documents worth processing.
+Use it when the user wants to **see or scope a directory** before processing it — "what's in this folder?", "inventory my inbox", "how many PDFs are in here and will LlamaCloud take them?", "scope this batch before I parse it". It answers those questions instantly and for free, then hands off to `parse` / `classify` for the documents worth processing.
 
 If the user wants to act on a single known file, skip `probe` and route straight to the relevant document facet.
 

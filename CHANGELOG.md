@@ -25,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   counts).
 
 ### Removed
+- `extract` and `split` facets — subcommands, `_extract.py` / `_split.py`
+  modules, skill references, example schema/category files, and tests.
+  Rationale: once `parse` has produced clean markdown, the consuming agent
+  (Claude) extracts fields to a schema and splits sections itself — zero
+  LlamaCloud credits, zero extra plumbing, full conversation context.
+  `classify` remains for routing documents *before* parsing (scans and
+  layout-heavy files an agent can't read locally). The removed code stays
+  in git history if an API-side extract/split is ever needed again.
 - `docs/llamacloud/` — the local mirror of the LlamaCloud docs site
   (~900 pages) and its support tooling: `scripts/fetch_docs.py`,
   `scripts/check_docs_staleness.py`, `scripts/docs_common.py`, and the

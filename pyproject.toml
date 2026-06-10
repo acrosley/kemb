@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "kemb"
 version = "0.6.0"
-description = "Corpus curation for agent-ready PDF libraries. Point Claude at a directory; probe, plan, then comb the corpus into a structured markdown mirror. Single-file parse, extract, classify, and split as facets of the kembing process, powered by LlamaCloud where needed."
+description = "Corpus curation for agent-ready PDF libraries. Point Claude at a directory; probe, plan, then comb the corpus into a structured markdown mirror. Single-file parse and classify as facets of the kembing process, powered by LlamaCloud where needed; post-parse extraction and splitting are the consuming agent's job."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.9"
@@ -21,7 +21,6 @@ keywords = [
     "pdf",
     "ocr",
     "document-parsing",
-    "structured-extraction",
     "classification",
     "markdown",
     "llamacloud",

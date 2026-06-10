@@ -42,8 +42,8 @@ LlamaCloud must be mocked — never commit a fixture that requires a real key.
 
 ## Adding a new capability
 
-Use `_parse.py`, `_extract.py`, `_classify.py`, or `_split.py` as a template
-(`_extract.py` is the closest "standard" example — SDK + REST + JSON I/O).
+Use `_parse.py` or `_classify.py` as a template
+(`_classify.py` is the closest "standard" example — SDK + REST + JSON I/O).
 Each module exposes the same three things:
 
 1. `*_with_sdk(...)` and `*_with_rest(...)` runner functions that share the
@@ -69,6 +69,6 @@ skill knows about the new facet.
 
 File issues at <https://github.com/acrosley/kemb/issues>.
 Include the CLI command you ran, the LlamaCloud API the failure came from
-(parse / extract / classify / split), and the verbatim error. **Never paste
+(parse / classify), and the verbatim error. **Never paste
 your API key**, even partially — the CLI surfaces errors with `error: …`
 prefixes that should be safe to share, but double-check before posting.

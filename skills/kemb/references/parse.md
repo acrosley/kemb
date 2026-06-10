@@ -110,7 +110,7 @@ If parsing fails or returns unexpected output, see `references/troubleshooting.m
 ## What this skill does NOT do
 
 - Embedding or vector storage. Pair with a separate RAG pipeline.
-- Schema-driven structured extraction — that's the **`extract` facet** (`extract.md`, LlamaExtract). If the user wants typed JSON fields out, route them there instead of trying to fake it through LlamaParse.
+- Schema-driven structured extraction — parse to markdown, then pull the fields yourself from the text (zero credits). The former `extract` API facet was removed.
 - Single-label document classification with confidence scores — see the **`classify` facet** (`classify.md`, LlamaClassify).
-- Splitting a long document into typed sections by category — see the **`split` facet** (`split.md`, LlamaSplit beta).
+- Splitting a long document into typed sections — parse to markdown, then split by headings yourself. The former `split` API facet was removed.
 - Store API keys. Keys come from the environment, every run.

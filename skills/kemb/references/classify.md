@@ -4,11 +4,11 @@ LlamaClassify is LlamaIndex's hosted document categorization service. Define cat
 
 ## When to use
 
-Use it when the user wants to **assign one of N labels** to a document — routing intake forms, sorting contracts vs invoices, flagging complaint type, gating a downstream workflow on document type. If they want every field pulled out, use the `extract` facet (`extract.md`) instead. If they want markdown, use `parse` (`parse.md`).
+Use it when the user wants to **assign one of N labels** to a document — routing intake forms, sorting contracts vs invoices, flagging complaint type, gating a downstream workflow on document type. If they want every field pulled out, parse to markdown first (`parse.md`) and extract the fields yourself from the text — no extra API call. If they want markdown, use `parse` (`parse.md`).
 
 ## Setup
 
-Same auth as parse / extract: `LLAMA_CLOUD_API_KEY` exported in the shell.
+Same auth as parse: `LLAMA_CLOUD_API_KEY` exported in the shell.
 
 ```bash
 test -n "$LLAMA_CLOUD_API_KEY" && echo "key is set" || echo "MISSING: export LLAMA_CLOUD_API_KEY=llx-..."
@@ -88,7 +88,7 @@ job = client.classify.create(
 # Poll client.classify.get(job.id) until status == COMPLETED.
 ```
 
-The SDK does **not** ship a `wait_for_completion` helper for classify (it does for parse/extract/split). Poll `client.classify.get(job_id)` manually, or use the bundled shim — it handles polling.
+The SDK does **not** ship a `wait_for_completion` helper for classify (it does for parse). Poll `client.classify.get(job_id)` manually, or use the bundled shim — it handles polling.
 
 ## REST API
 
@@ -100,7 +100,6 @@ Status enum is uppercase: `PENDING|RUNNING|COMPLETED|FAILED`.
 
 ## What this skill does NOT do
 
-- Pull structured fields from the document — use `extract` (`extract.md`).
-- Split a document into sections — use `split` (`split.md`).
+- Pull structured fields or split into sections — parse to markdown (`parse.md`), then do that work yourself from the text; the former `extract` / `split` API facets were removed.
 - Convert to markdown — use `parse` (`parse.md`).
 - Store API keys. Keys come from the environment, every run.
