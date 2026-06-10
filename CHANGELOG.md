@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- `docs/llamacloud/` — the local mirror of the LlamaCloud docs site
+  (~900 pages) and its support tooling: `scripts/fetch_docs.py`,
+  `scripts/check_docs_staleness.py`, `scripts/docs_common.py`, and the
+  weekly `docs-staleness` workflow with its `docs-drift` tracking issues.
+  Nothing in the package, skill, or tests referenced the mirror — the
+  skill ships its own distilled per-facet references — and the weekly
+  drift triage competed with building the corpus-curation core
+  (`docs/goal.txt`). The mirror remains available in git history.
+
 ## [0.6.0] - 2026-05-30
 
 ### Changed
