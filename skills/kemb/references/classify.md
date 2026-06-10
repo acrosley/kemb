@@ -1,15 +1,10 @@
----
-name: llamaclassify
-description: Categorize a document into one of a defined set of categories using LlamaIndex's LlamaClassify v2 service. Use whenever the user names LlamaClassify or wants to label / categorize / route / triage a document (contract vs invoice vs other, complaint type, document type for a workflow) with a confidence score and a short reason.
----
-
-# LlamaClassify
+# Classify facet — LlamaClassify v2
 
 LlamaClassify is LlamaIndex's hosted document categorization service. Define categories as natural-language rules; it returns the matched category, a confidence score (0.0–1.0), and a brief reasoning string. This skill targets **LlamaClassify API v2** via the `llama-cloud` Python SDK.
 
 ## When to use
 
-Use it when the user wants to **assign one of N labels** to a document — routing intake forms, sorting contracts vs invoices, flagging complaint type, gating a downstream workflow on document type. If they want every field pulled out, use the `llamaextract` skill instead. If they want markdown, use `llamaparse`.
+Use it when the user wants to **assign one of N labels** to a document — routing intake forms, sorting contracts vs invoices, flagging complaint type, gating a downstream workflow on document type. If they want every field pulled out, use the `extract` facet (`extract.md`) instead. If they want markdown, use `parse` (`parse.md`).
 
 ## Setup
 
@@ -19,7 +14,7 @@ Same auth as parse / extract: `LLAMA_CLOUD_API_KEY` exported in the shell.
 test -n "$LLAMA_CLOUD_API_KEY" && echo "key is set" || echo "MISSING: export LLAMA_CLOUD_API_KEY=llx-..."
 ```
 
-The bundled script accepts `--auto-install` to `pip install llama-cloud` on first run. Always pass it from this skill.
+The bundled shim accepts `--auto-install` to `pip install llama-cloud` on first run. Always pass it from this skill.
 
 ## Rules
 
@@ -41,7 +36,7 @@ For repeated workflows, save the configuration in LlamaCloud and pass `--configu
 ## Quick start
 
 ```bash
-python scripts/run_classify.py <input_file> --auto-install \
+python scripts/kemb_cli.py classify <input_file> --auto-install \
     --rules @rules.json \
     --output result.json
 ```
@@ -93,7 +88,7 @@ job = client.classify.create(
 # Poll client.classify.get(job.id) until status == COMPLETED.
 ```
 
-The SDK does **not** ship a `wait_for_completion` helper for classify (it does for parse/extract/split). Poll `client.classify.get(job_id)` manually, or use the bundled script — it handles polling.
+The SDK does **not** ship a `wait_for_completion` helper for classify (it does for parse/extract/split). Poll `client.classify.get(job_id)` manually, or use the bundled shim — it handles polling.
 
 ## REST API
 
@@ -105,7 +100,7 @@ Status enum is uppercase: `PENDING|RUNNING|COMPLETED|FAILED`.
 
 ## What this skill does NOT do
 
-- Pull structured fields from the document — use `llamaextract`.
-- Split a document into sections — use `llamasplit`.
-- Convert to markdown — use `llamaparse`.
+- Pull structured fields from the document — use `extract` (`extract.md`).
+- Split a document into sections — use `split` (`split.md`).
+- Convert to markdown — use `parse` (`parse.md`).
 - Store API keys. Keys come from the environment, every run.

@@ -1,11 +1,30 @@
 # Changelog
 
-All notable changes to `llamaparse-plugin` are documented in this file.
+All notable changes to `kemb` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.6.0] - 2026-05-30
+
+### Changed
+- **Rebrand: `llamaparse-plugin` → `kemb`.** Repository, Python package
+  (`llamaparse_cli` → `kemb`), CLI command (`llamaparse` → `kemb`), and
+  plugin/marketplace identifiers all renamed. Project reframed from
+  "LlamaCloud wrapper" to corpus curation for agent-ready PDF libraries
+  (see `docs/goal.txt`). The four LlamaCloud APIs (parse, extract,
+  classify, split) remain as facets under a single orchestrating `kemb`
+  skill, now joined by a local `probe` facet (see Added); the previous four
+  user-facing skills folded into
+  `skills/kemb/references/{parse,extract,classify,split}.md`.
+
+### Removed
+- `llamaparse` CLI command — no deprecated alias. Use `kemb` instead.
+- `skills/llamaparse/`, `skills/llamaextract/`, `skills/llamaclassify/`,
+  `skills/llamasplit/` — replaced by the single `skills/kemb/` orchestrator
+  with per-facet reference docs.
 
 ### Added
 - `probe` subcommand: recursively walks a target directory and reports
@@ -105,9 +124,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Marketplace and plugin manifests under `.claude-plugin/`.
 - MIT license.
 
-[Unreleased]: https://github.com/acrosley/llamaparse-plugin/compare/v0.5.0...HEAD
-[0.5.0]: https://github.com/acrosley/llamaparse-plugin/compare/v0.4.0...v0.5.0
-[0.4.0]: https://github.com/acrosley/llamaparse-plugin/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/acrosley/llamaparse-plugin/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/acrosley/llamaparse-plugin/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/acrosley/llamaparse-plugin/releases/tag/v0.1.0
+[Unreleased]: https://github.com/acrosley/kemb/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/acrosley/kemb/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/acrosley/kemb/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/acrosley/kemb/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/acrosley/kemb/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/acrosley/kemb/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/acrosley/kemb/releases/tag/v0.1.0

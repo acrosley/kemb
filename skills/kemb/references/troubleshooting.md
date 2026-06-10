@@ -1,6 +1,6 @@
-# LlamaParse troubleshooting (v2)
+# kemb troubleshooting
 
-This skill targets LlamaParse API v2 only. When something goes wrong, surface the upstream error to the user verbatim before guessing — the remediation almost always lives in the response body.
+Shared troubleshooting for all `kemb` facets, which target the LlamaCloud APIs (LlamaParse / LlamaExtract / LlamaClassify v2, LlamaSplit v1 beta). When something goes wrong, surface the upstream error to the user verbatim before guessing — the remediation almost always lives in the response body. Most sections below use parse as the worked example, but the auth, network, install, rate-limit, and shape-drift advice applies to every facet.
 
 ## "LLAMA_CLOUD_API_KEY is not set"
 
@@ -10,7 +10,7 @@ The skill never accepts the key as a CLI argument or stores it in a config file 
 export LLAMA_CLOUD_API_KEY=llx-...
 ```
 
-…in the same shell session before invoking the script. For a permanent setup on Windows, use `setx LLAMA_CLOUD_API_KEY "llx-..."` and fully restart your Claude host; on macOS/Linux, add it to the shell rc file. Keys come from https://cloud.llamaindex.ai/api-key.
+…in the same shell session before invoking the shim. For a permanent setup on Windows, use `setx LLAMA_CLOUD_API_KEY "llx-..."` and fully restart your Claude host; on macOS/Linux, add it to the shell rc file. Keys come from https://cloud.llamaindex.ai/api-key.
 
 If the user has stored their key under a different env var name (e.g., `LLAMAPARSE_API_KEY`), alias it for the run:
 
@@ -32,7 +32,7 @@ A 403 here is a host-side block, not a LlamaParse auth failure. To unblock:
 2. Fully restart the host so the new allowlist takes effect.
 3. Retry — should now hit the LlamaParse server.
 
-If allowlisting isn't possible (e.g., the user isn't an org owner), fall back to running `parse_document.py` outside the sandbox in their normal terminal.
+If allowlisting isn't possible (e.g., the user isn't an org owner), fall back to running the shim (`scripts/kemb_cli.py`) outside the sandbox in their normal terminal.
 
 ## `ImportError: llama_cloud` or `cannot import name 'LlamaCloud'`
 
@@ -42,13 +42,13 @@ The v2 SDK lives in the `llama-cloud` package:
 pip install llama-cloud --break-system-packages
 ```
 
-**Do not install `llama-cloud-services` or `llama-parse`.** Those are the v1 packages, deprecated by LlamaIndex and slated for archive after May 1, 2026. The bundled script will not use them.
+**Do not install `llama-cloud-services` or `llama-parse`.** Those are the v1 packages, deprecated by LlamaIndex and slated for archive after May 1, 2026. The bundled shim will not use them.
 
 If the SDK still won't install, rerun with `--rest` to use the REST path, which only needs `requests`.
 
 ## `400 Bad Request` with "version is required" or "tier is required"
 
-In v2, both `tier` and `version` are required fields in the `configuration` JSON. The bundled script always sends them (defaults: `tier=cost_effective`, `version=latest`). If you see this error from a custom integration, add both to your configuration envelope:
+In v2, both `tier` and `version` are required fields in the `configuration` JSON. The bundled shim always sends them (defaults: `tier=cost_effective`, `version=latest`). If you see this error from a custom integration, add both to your configuration envelope:
 
 ```json
 {
@@ -65,10 +65,10 @@ For reproducible production runs, pin `version` to a dated value like `"2026-01-
 
 ## Job stuck in `PENDING` / `RUNNING`
 
-Large or scanned documents can take several minutes. The bundled script defaults to a 600-second poll timeout. If a real job needs longer:
+Large or scanned documents can take several minutes. The bundled shim defaults to a 600-second poll timeout. If a real job needs longer:
 
 ```bash
-python scripts/parse_document.py big.pdf --rest --poll-timeout 1800
+python scripts/kemb_cli.py parse big.pdf --rest --poll-timeout 1800
 ```
 
 If a job genuinely hangs (stays `RUNNING` past 10 minutes for a normal-sized doc), it's worth canceling and resubmitting — occasionally a worker dies and the queue takes a while to notice.
@@ -91,7 +91,7 @@ A few things to check, in order:
 
 LlamaParse APIs evolve. If a script that worked yesterday breaks today on field names, check the SDK source at https://github.com/run-llama/llama-cloud-py and the API reference on the LlamaIndex docs site.
 
-The bundled script defends against several known v2 shape variations (e.g., `id` vs `job_id`, expanded content under `result` vs at top level, single string vs `pages` array). If a new variant appears, adjust `_extract_sdk_result` / `_extract_rest_field` in `src/llamaparse_cli/_core.py` rather than working around it in user code. (`scripts/parse_document.py` is a thin shim that forwards into that module.)
+The bundled shim defends against several known v2 shape variations (e.g., `id` vs `job_id`, expanded content under `result` vs at top level, single string vs `pages` array). If a new variant appears, adjust `_extract_sdk_result` / `_extract_rest_field` in `src/kemb/_parse.py` rather than working around it in user code. (`skills/kemb/scripts/kemb_cli.py` is a thin shim that forwards into that module.)
 
 ## Rate limiting (`429`)
 

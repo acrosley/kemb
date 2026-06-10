@@ -167,8 +167,8 @@ def add_subparser(subparsers):
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"
-            "  llamaparse extract ./invoice.pdf --schema @invoice_schema.json\n"
-            "  llamaparse extract ./form.pdf --configuration-id cfg_abc123\n"
+            "  kemb extract ./invoice.pdf --schema @invoice_schema.json\n"
+            "  kemb extract ./form.pdf --configuration-id cfg_abc123\n"
         ),
     )
     p.add_argument("input", type=Path, help="Path to the document to extract from.")

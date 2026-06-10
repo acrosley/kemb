@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from llamaparse_cli import _parse
+from kemb import _parse
 
 
 # ---------------------------------------------------------------------------

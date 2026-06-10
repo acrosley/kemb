@@ -1,4 +1,4 @@
-"""Doctor — preflight checks for a llamaparse install.
+"""Doctor — preflight checks for a kemb install.
 
 Reports Python and package versions, dependency availability, API key
 presence, and a non-billable auth probe against LlamaCloud. Spends zero
@@ -31,7 +31,7 @@ _SKIP = "[skip]"
 def add_subparser(subparsers):
     p = subparsers.add_parser(
         "doctor",
-        help="Diagnose your llamaparse install (Python, deps, API key, reachability).",
+        help="Diagnose your kemb install (Python, deps, API key, reachability).",
         description=(
             "Run preflight checks against the local install: Python version, "
             "package version, `requests` and `llama-cloud` availability, "
@@ -41,8 +41,8 @@ def add_subparser(subparsers):
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"
-            "  llamaparse doctor             # full check incl. one auth probe\n"
-            "  llamaparse doctor --offline   # skip the network probe\n"
+            "  kemb doctor             # full check incl. one auth probe\n"
+            "  kemb doctor --offline   # skip the network probe\n"
         ),
     )
     p.add_argument(
@@ -78,16 +78,16 @@ def check_package_version() -> tuple[str, str, Optional[str]]:
     try:
         from importlib.metadata import PackageNotFoundError, version
 
-        v = version("llamaparse-cli")
-        return _OK, f"llamaparse-cli {v}", None
+        v = version("kemb")
+        return _OK, f"kemb {v}", None
     except PackageNotFoundError:
         return (
             _WARN,
-            "llamaparse-cli (version unknown)",
+            "kemb (version unknown)",
             "package metadata missing — running from a source tree?",
         )
     except Exception as e:
-        return _WARN, "llamaparse-cli (version unknown)", repr(e)
+        return _WARN, "kemb (version unknown)", repr(e)
 
 
 def check_requests() -> tuple[str, str, Optional[str]]:
@@ -196,7 +196,7 @@ def _print_line(status: str, headline: str, detail: Optional[str]) -> None:
 
 
 def run(args) -> int:
-    print("llamaparse doctor")
+    print("kemb doctor")
     print("-----------------")
 
     results: list[tuple[str, str, Optional[str]]] = [

@@ -32,7 +32,7 @@ def require_api_key() -> str:
     return key
 
 
-def surface_api_error(label: str, exc: Exception) -> None:
+def surface_api_error(label: str, exc: Exception) -> NoReturn:
     body = getattr(exc, "body", None)
     if body is None:
         resp = getattr(exc, "response", None)
@@ -46,19 +46,33 @@ def surface_api_error(label: str, exc: Exception) -> None:
 
 
 def try_install_sdk() -> bool:
-    """Best-effort `pip install llama-cloud` for the running interpreter."""
+    """Best-effort `pip install llama-cloud` for the running interpreter.
+
+    Tries a plain install first, then retries with --break-system-packages for
+    PEP 668 "externally managed" environments. On total failure, prints the last
+    attempt's output to stderr so a user who asked for --auto-install can see
+    *why* it failed rather than just the downstream "SDK not available".
+    """
     cmds = [
         [sys.executable, "-m", "pip", "install", "--quiet", "llama-cloud"],
         [sys.executable, "-m", "pip", "install", "--quiet",
          "--break-system-packages", "llama-cloud"],
     ]
+    last_output = ""
     for cmd in cmds:
         try:
-            subprocess.check_call(cmd, stdout=subprocess.DEVNULL,
-                                  stderr=subprocess.STDOUT)
-            return True
-        except Exception:
+            proc = subprocess.run(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True,
+            )
+        except OSError as e:
+            last_output = str(e)
             continue
+        if proc.returncode == 0:
+            return True
+        last_output = (proc.stdout or "").strip()
+    tail = last_output[-500:] if last_output else "(no output captured)"
+    print(f"note: pip install llama-cloud failed: {tail}", file=sys.stderr)
     return False
 
 
@@ -125,12 +139,31 @@ def poll_job(
         if status == "COMPLETED":
             return payload
         if status in ("FAILED", "CANCELLED"):
+            reason = _failure_reason(payload)
             err(
-                f"job ended with {status}: {json.dumps(payload)[:500]}",
+                f"job {status}: {reason}\n"
+                f"full payload: {json.dumps(payload)[:500]}",
                 code=3,
             )
         time.sleep(min(backoff, 5.0))
         backoff = min(backoff * 1.5, 5.0)
+
+
+def _failure_reason(payload: dict) -> str:
+    """Pull a human-readable failure reason out of a failed-job payload.
+
+    LlamaCloud surfaces the cause under varying keys depending on the endpoint
+    (`error`, `error_message`, `detail`, or nested under `job`). Lead with
+    whichever is present so the message isn't buried under envelope noise.
+    """
+    job = payload.get("job") if isinstance(payload, dict) else None
+    sources = [payload, job if isinstance(job, dict) else {}]
+    for src in sources:
+        for key in ("error_message", "error", "detail", "message"):
+            value = src.get(key)
+            if value:
+                return str(value)
+    return "(no reason in payload)"
 
 
 def upload_file_rest(file_path, purpose: str = "user_data") -> str:
@@ -242,7 +275,7 @@ def render_dry_run(command: str, fields: dict) -> str:
     output always ends with the same trailing reassurance so a CI grep
     for "no upload" is reliable.
     """
-    lines = [f"[dry-run] llamaparse {command}"]
+    lines = [f"[dry-run] kemb {command}"]
     width = max((len(k) for k in fields), default=0)
     for key, value in fields.items():
         rendered = _stringify_dry_run_value(value)

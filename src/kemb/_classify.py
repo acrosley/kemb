@@ -187,9 +187,9 @@ def add_subparser(subparsers):
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"
-            "  llamaparse classify ./doc.pdf --rules @rules.json\n"
-            "  llamaparse classify ./doc.pdf --rules '[{\"type\":\"contract\",\"description\":\"legal agreement\"}]'\n"
-            "  llamaparse classify ./doc.pdf --configuration-id cfg_xyz789\n"
+            "  kemb classify ./doc.pdf --rules @rules.json\n"
+            "  kemb classify ./doc.pdf --rules '[{\"type\":\"contract\",\"description\":\"legal agreement\"}]'\n"
+            "  kemb classify ./doc.pdf --configuration-id cfg_xyz789\n"
         ),
     )
     p.add_argument("input", type=Path, help="Path to the document to classify.")

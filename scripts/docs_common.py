@@ -32,7 +32,7 @@ SITEMAP_URL = f"{DOCS_HOST}/sitemap.xml"
 # explicit — broadening it accidentally pulls in 1700+ unrelated pages.
 INCLUDED_PREFIXES = ("/llamaparse/", "/reference/")
 
-USER_AGENT = "llamaparse-plugin-docs-mirror/1.0 (+https://github.com/acrosley/llamaparse-plugin)"
+USER_AGENT = "kemb-docs-mirror/1.0 (+https://github.com/acrosley/kemb)"
 
 
 @dataclass(frozen=True)
