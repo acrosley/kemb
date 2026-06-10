@@ -6,7 +6,10 @@ network calls, no LlamaCloud credits spent — it's a local-only preflight
 for batch jobs and a companion to `--dry-run`.
 
 Output is a human-readable table by default; `--json` emits a single JSON
-object so downstream tools can pipe results into a shell loop.
+object so downstream tools can pipe results into a shell loop. `--sample`
+additionally extracts the first words of each document locally and renders a
+===document===-separated corpus sample an agent can read in one pass to
+triage a large multi-directory corpus before spending parse credits.
 
 Exit codes:
     0 — directory scanned (even if it contained zero files)
@@ -20,11 +23,18 @@ import mimetypes
 import os
 import stat
 import sys
+import textwrap
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator, List, Optional, TypedDict
 
 from ._common import err
+from ._sample import (
+    STATUS_OK,
+    STATUS_NO_TEXT,
+    STATUS_SKIPPED,
+    sample_file,
+)
 
 
 # --------------------------------------------------------------------------- #
@@ -38,7 +48,13 @@ from ._common import err
 
 
 class FileInfo(TypedDict):
-    """Per-file metadata, one entry in the report's ``files`` list."""
+    """Per-file metadata, one entry in the report's ``files`` list.
+
+    In --sample mode each entry additionally carries ``sample`` (str),
+    ``sample_words`` (int), ``sample_status`` (str), ``sample_detail``
+    (Optional[str]), and ``pages`` (Optional[int], PDFs only). They're left
+    out of the base shape so plain probes stay stat-only and fast.
+    """
 
     path: str
     relative: str
@@ -114,6 +130,14 @@ SUPPORTED_EXTENSIONS = frozenset({
 # terminal. The defaults are generous; --max-files / --max-depth tighten.
 DEFAULT_MAX_FILES = 10_000
 
+# --sample defaults. The per-file word cap keeps any one document from
+# dominating; the corpus-wide budget bounds the whole sample file so it stays
+# readable in a single agent context window. Files past the budget still get
+# their inventory header — only the sample text is skipped.
+DEFAULT_SAMPLE_WORDS = 120
+DEFAULT_SAMPLE_PAGES = 3
+DEFAULT_SAMPLE_BUDGET = 60_000
+
 
 def add_subparser(subparsers):
     p = subparsers.add_parser(
@@ -132,6 +156,7 @@ def add_subparser(subparsers):
             "  llamaparse probe ./inbox --ext pdf,docx\n"
             "  llamaparse probe ./inbox --max-depth 2 --supported-only\n"
             "  llamaparse probe ./inbox --json > inventory.json\n"
+            "  llamaparse probe ./cases --sample --output corpus_sample.txt\n"
         ),
     )
     p.add_argument(
@@ -172,6 +197,35 @@ def add_subparser(subparsers):
         action="store_true",
         help="Follow symlinked directories during the walk (off by default to "
              "avoid loops).",
+    )
+    p.add_argument(
+        "--sample",
+        action="store_true",
+        help="Extract the first words of each document locally and emit a "
+             "===document===-separated corpus sample (instead of the table) "
+             "so an agent can triage the corpus in one read. PDFs also gain "
+             "page counts and scan detection. Still zero network calls.",
+    )
+    p.add_argument(
+        "--sample-words",
+        type=int,
+        default=DEFAULT_SAMPLE_WORDS,
+        help=f"Max words sampled per document (default: {DEFAULT_SAMPLE_WORDS}).",
+    )
+    p.add_argument(
+        "--sample-pages",
+        type=int,
+        default=DEFAULT_SAMPLE_PAGES,
+        help="Max PDF pages to pull sample text from "
+             f"(default: {DEFAULT_SAMPLE_PAGES}).",
+    )
+    p.add_argument(
+        "--sample-budget",
+        type=int,
+        default=DEFAULT_SAMPLE_BUDGET,
+        help="Corpus-wide word budget across all samples; files past the "
+             "budget keep their header but skip the text "
+             f"(default: {DEFAULT_SAMPLE_BUDGET}).",
     )
     p.add_argument(
         "--json",
@@ -533,6 +587,114 @@ def _summary_block(summary):
     return "\n".join(parts)
 
 
+def attach_samples(entries, *, max_words, pdf_pages, budget):
+    """Sample each file's text in place and return corpus-wide stats.
+
+    Entries gain ``sample`` / ``sample_words`` / ``sample_status`` /
+    ``sample_detail`` / ``pages`` fields. The corpus-wide word ``budget``
+    bounds total extracted text: once spent, remaining files keep their
+    inventory entry but are marked skipped instead of sampled, so the
+    inventory stays complete even when the sample text does not.
+    """
+    stats = {"by_status": {}, "total_words": 0, "no_text_files": []}
+    remaining = budget
+    for entry in entries:
+        if not entry["readable"]:
+            result = {
+                "status": "error",
+                "text": "",
+                "words": 0,
+                "pages": None,
+                "detail": entry["error"],
+            }
+        elif remaining <= 0:
+            result = {
+                "status": STATUS_SKIPPED,
+                "text": "",
+                "words": 0,
+                "pages": None,
+                "detail": "corpus sample budget exhausted",
+            }
+        else:
+            result = sample_file(
+                entry["path"],
+                entry["extension"],
+                max_words=min(max_words, remaining),
+                pdf_pages=pdf_pages,
+            )
+            remaining -= result["words"]
+
+        entry["sample"] = result["text"]
+        entry["sample_words"] = result["words"]
+        entry["sample_status"] = result["status"]
+        entry["sample_detail"] = result["detail"]
+        entry["pages"] = result["pages"]
+
+        bucket = stats["by_status"].setdefault(result["status"], 0)
+        stats["by_status"][result["status"]] = bucket + 1
+        stats["total_words"] += result["words"]
+        if result["status"] == STATUS_NO_TEXT and entry["extension"] == ".pdf":
+            stats["no_text_files"].append(entry["relative"])
+    return stats
+
+
+def _sample_header_line(entry) -> str:
+    """The metadata comment under each ===document=== separator."""
+    parts = [entry["size_human"]]
+    if entry.get("pages") is not None:
+        parts.append(f"{entry['pages']} pages")
+    parts.append(entry["mtime_iso"] or "?")
+    parts.append(entry["extension"] or "(no ext)")
+    status = entry["sample_status"]
+    if status == STATUS_OK:
+        parts.append("text: ok")
+    else:
+        detail = entry.get("sample_detail")
+        parts.append(f"text: {status}" + (f" ({detail})" if detail else ""))
+    return "# " + " | ".join(parts)
+
+
+def render_sample(entries, summary, stats) -> str:
+    """Render the ===document===-separated corpus sample.
+
+    One block per file: separator + path, a metadata comment line, then the
+    sampled words. Designed to be read whole by an agent triaging the corpus
+    — doc types, scan-vs-text, parse tiers — without any uploads.
+    """
+    lines = [
+        "# corpus sample — generated "
+        + datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        f"# files: {summary['total_files']} | "
+        f"total size: {summary['total_size_human']} | "
+        f"sampled words: {stats['total_words']}",
+    ]
+    status_parts = [
+        f"{status}: {count}"
+        for status, count in sorted(stats["by_status"].items())
+    ]
+    if status_parts:
+        lines.append("# sample status — " + " | ".join(status_parts))
+    if stats["no_text_files"]:
+        lines.append(
+            f"# {len(stats['no_text_files'])} PDF(s) have no text layer "
+            "(likely scans; route to an OCR-capable parse tier)"
+        )
+
+    for entry in entries:
+        lines.append("")
+        lines.append(f"===document=== {entry['relative']}")
+        lines.append(_sample_header_line(entry))
+        if entry["sample"]:
+            lines.append(textwrap.fill(entry["sample"], width=100))
+        else:
+            detail = entry.get("sample_detail") or entry["sample_status"]
+            lines.append(f"[{detail}]")
+
+    lines.append("")
+    lines.append(_summary_block(summary))
+    return "\n".join(lines)
+
+
 def render_json(entries, summary) -> str:
     """Compose the JSON envelope: files + summary + generated_at."""
     report: ProbeReport = {
@@ -553,6 +715,19 @@ def run(args):
         err("--max-depth must be >= 0")
     if args.max_files is not None and args.max_files <= 0:
         err("--max-files must be > 0")
+    if args.sample_words <= 0:
+        err("--sample-words must be > 0")
+    if args.sample_pages <= 0:
+        err("--sample-pages must be > 0")
+    if args.sample_budget <= 0:
+        err("--sample-budget must be > 0")
+    for flag, value, default in (
+        ("--sample-words", args.sample_words, DEFAULT_SAMPLE_WORDS),
+        ("--sample-pages", args.sample_pages, DEFAULT_SAMPLE_PAGES),
+        ("--sample-budget", args.sample_budget, DEFAULT_SAMPLE_BUDGET),
+    ):
+        if not args.sample and value != default:
+            err(f"{flag} requires --sample")
 
     extensions = _normalize_extensions(args.ext)
 
@@ -575,8 +750,19 @@ def run(args):
     # summarize() reads the truncation + walk-error sentinels alongside files.
     summary = summarize(entries + sentinels)
 
+    sample_stats = None
+    if args.sample:
+        sample_stats = attach_samples(
+            entries,
+            max_words=args.sample_words,
+            pdf_pages=args.sample_pages,
+            budget=args.sample_budget,
+        )
+
     if args.json:
         report = render_json(entries, summary)
+    elif args.sample:
+        report = render_sample(entries, summary, sample_stats)
     else:
         report = render_table(entries, summary)
 

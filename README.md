@@ -109,7 +109,7 @@ After install, run `llamaparse doctor` to confirm your Python, deps, and
 against LlamaCloud and never starts a job. Add `--offline` to skip the
 network check.
 
-`llama-cloud` and `requests` install automatically as dependencies.
+`llama-cloud`, `requests`, and `pypdf` install automatically as dependencies.
 
 ### parse — document → markdown / text
 
@@ -176,6 +176,31 @@ format. It never makes a network call — use it to preview a batch before
 running `parse` / `extract` / `classify` / `split` over a directory. Hidden
 files and directories are skipped unless `--include-hidden` is passed.
 
+#### probe --sample — corpus triage in one text file (zero credits)
+
+```bash
+llamaparse probe ./cases --sample                            # ===document=== separated sample
+llamaparse probe ./cases --sample --output corpus_sample.txt # write it to a file
+llamaparse probe ./cases --sample --sample-words 200         # more words per doc
+llamaparse probe ./cases --sample --sample-budget 20000      # tighter corpus-wide cap
+llamaparse probe ./cases --sample --json                     # samples embedded in the JSON
+```
+
+`--sample` extracts the first words of every document **locally** — PDFs via
+`pypdf`, Office/OpenDocument files via their XML, text/HTML directly — and
+renders one `===document===`-separated text file: a separator and metadata
+line per document (size, page count, mtime, type, text status), followed by
+up to `--sample-words` words of its content. An agent can read that single
+file and weigh an entire multi-directory case corpus — what each document is,
+which are scans (PDFs with no text layer are flagged for OCR-capable parse
+tiers), what to parse now versus defer — without uploading anything or
+running a per-file model pass.
+
+`--sample-budget` caps total sampled words corpus-wide so the output stays
+readable in one context window; files past the budget keep their inventory
+line but skip the text. PDFs also gain page counts — the input you need to
+estimate parse cost (pages × tier) before committing to a batch.
+
 ### --dry-run — preview a job without spending credits
 
 ```bash
@@ -238,6 +263,18 @@ llamaparse parse ./scanned-deposition.pdf --tier agentic --strip-noise
 
 `agentic` handles the multi-column OCR; `--strip-noise` drops repeating
 header/footer artifacts so the resulting markdown is paste-ready.
+
+### Triage a multi-directory case corpus before spending credits
+
+```bash
+llamaparse probe ./case-files --sample --output corpus_sample.txt
+```
+
+One zero-credit command produces a `===document===`-separated sample of the
+whole tree — first words, page counts, and scan flags for every document.
+Hand `corpus_sample.txt` to Claude (or read it yourself) to decide doc types,
+parse tiers, and priorities, then run `parse` / `extract` over only the files
+that earn it.
 
 ## Install — Claude Code plugin
 
