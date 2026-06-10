@@ -7,24 +7,30 @@
 [![Changelog](https://img.shields.io/badge/changelog-keepachangelog-orange.svg)](./CHANGELOG.md)
 
 > Comb document corpora into agent-ready form. One CLI, one Claude skill,
-> four LlamaCloud-backed facets — parse, extract, classify, split — plus a
-> local, zero-credit `probe` for scoping a directory before you spend a thing.
+> two LlamaCloud-backed facets — parse and classify — plus a local,
+> zero-credit `probe` for triaging a directory before you spend a thing.
 
 **Kembing** is the discipline of preparing document corpora for agents: survey
 the pile, plan the pass, then comb each document into a structured markdown
-mirror that an LLM can actually use. Today `kemb` ships the four single-file
-document facets that make up a pass, plus a local `probe` that surveys a
-directory before you process it — the first shipped step of that arc. The rest
-of the orchestration (plan → execute → mirror with hash-stamped provenance) is
-in active development — see [`docs/goal.txt`](./docs/goal.txt).
+mirror that an LLM can actually use. Today `kemb` ships the two single-file
+document facets that make up a pass, plus a local `probe` that surveys and
+triages a directory before you process it — the first shipped step of that
+arc. The rest of the orchestration (plan → execute → mirror with hash-stamped
+provenance) is in active development — see [`docs/goal.txt`](./docs/goal.txt).
 
 | Facet       | What it does                                                    | API                 |
 |-------------|-----------------------------------------------------------------|---------------------|
 | **parse**   | Document → clean markdown / text (tables, multi-column, scans)  | LlamaParse v2       |
-| **extract** | Document + JSON Schema → typed JSON object                      | LlamaExtract v2     |
 | **classify**| Document + categories → matched label + confidence              | LlamaClassify v2    |
-| **split**   | Document + categories → typed sections with page ranges         | LlamaSplit v1 beta  |
-| **probe**   | Directory → per-file inventory (size, type, LlamaCloud support)  | local, zero credits |
+| **probe**   | Directory → per-file inventory + text samples for triage         | local, zero credits |
+
+**Why only two API facets?** Because the third party in the room is an LLM.
+Once `parse` has produced clean markdown, the consuming agent extracts fields
+to a schema, classifies, and splits sections itself — zero LlamaCloud credits,
+zero extra plumbing, full conversation context. The former `extract` and
+`split` facets were removed for exactly that reason; `classify` stays for
+routing documents *before* parsing (scans and layout-heavy files an agent
+can't read locally).
 
 `probe` and `doctor` are local, zero-credit tools — `probe` scopes a directory
 and `doctor` runs a preflight check — neither uploads a document or starts a job.
@@ -42,7 +48,7 @@ export LLAMA_CLOUD_API_KEY="llx-..."
 kemb parse ./contract.pdf      # → contract.md
 ```
 
-That's it. `extract`, `classify`, and `split` follow the same shape — see
+That's it. `classify` follows the same shape — see
 [Real examples](#real-examples) below.
 
 ## What this is for
@@ -65,7 +71,7 @@ That's it. `extract`, `classify`, and `split` follow the same shape — see
 | Mode   | What you run                                                                                                  | What you get                                                                                                                                                            |
 |--------|---------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Plugin | `/plugin install kemb@kemb` in Claude Code (or "Add marketplace from GitHub" in Cowork)                       | One orchestrating skill that routes by facet, with per-facet reference docs that load on demand.                                                                        |
-| CLI    | `pipx install git+https://github.com/acrosley/kemb`                                                           | A `kemb` command on your PATH with four facet subcommands and a preflight `doctor`.                                                                                     |
+| CLI    | `pipx install git+https://github.com/acrosley/kemb`                                                           | A `kemb` command on your PATH with `parse`, `classify`, and `probe` subcommands and a preflight `doctor`.                                                               |
 
 You only need a LlamaCloud API key — grab one at
 <https://cloud.llamaindex.ai/api-key>.
@@ -107,9 +113,7 @@ You'll get a `kemb` command:
 ```bash
 kemb --help                                    # top-level help
 kemb parse     --help
-kemb extract   --help
 kemb classify  --help
-kemb split     --help
 kemb probe     --help                          # scan a directory (zero credits)
 kemb doctor                                    # preflight checks (zero credits)
 ```
@@ -119,7 +123,7 @@ After install, run `kemb doctor` to confirm your Python, deps, and
 against LlamaCloud and never starts a job. Add `--offline` to skip the
 network check.
 
-`llama-cloud` and `requests` install automatically as dependencies.
+`llama-cloud`, `requests`, and `pypdf` install automatically as dependencies.
 
 ### parse — document → markdown / text
 
@@ -134,18 +138,6 @@ kemb parse ./report.pdf --rest                  # force REST path (no SDK)
 
 **Shortcut:** `kemb ./file.pdf [...]` (no subcommand) dispatches as `parse`.
 
-### extract — document + JSON Schema → typed JSON
-
-```bash
-kemb extract ./invoice.pdf --schema @invoice_schema.json
-kemb extract ./form.pdf    --configuration-id cfg_abc123    # saved agent
-kemb extract ./doc.pdf     --schema '{"type":"object","properties":{"name":{"type":"string"}}}'
-```
-
-Pass a JSON Schema describing the shape you want back. Save once, reference
-with `@path.json`, or inline small ones. Output defaults to
-`<input>.extract.json`.
-
 ### classify — document + categories → label + confidence
 
 ```bash
@@ -157,17 +149,6 @@ kemb classify ./doc.pdf --mode multimodal       # vision for scans / layout-heav
 `--rules` is a JSON list of `{type, description}` objects. The classifier
 returns `{type, confidence, reasoning}`. Output defaults to
 `<input>.classify.json`.
-
-### split — long document → typed sections with page ranges
-
-```bash
-kemb split ./report.pdf --categories @cats.json
-kemb split ./report.pdf --categories '[{"name":"intro","description":"Opening summary"}]'
-kemb split ./report.pdf --splitting-strategy semantic
-```
-
-LlamaSplit is currently a **v1 beta** endpoint — its response shape may
-evolve. Output defaults to `<input>.split.json`.
 
 ### probe — recursively inventory a directory (zero credits)
 
@@ -182,39 +163,64 @@ kemb probe ./inbox --json > inventory.json      # machine-readable
 `probe` walks the target directory recursively and reports per-file size,
 mtime, extension, mime type, and whether LlamaCloud is likely to accept the
 format. It never makes a network call — use it to preview a batch before
-running `parse` / `extract` / `classify` / `split` over a directory. Hidden
+running `parse` / `classify` over a directory. Hidden
 files and directories are skipped unless `--include-hidden` is passed.
+
+#### probe --sample — corpus triage in one text file (zero credits)
+
+```bash
+kemb probe ./cases --sample                            # XML-tagged corpus sample
+kemb probe ./cases --sample --output corpus_sample.txt # write it to a file
+kemb probe ./cases --sample --sample-words 200         # more words per doc
+kemb probe ./cases --sample --sample-budget 20000      # tighter corpus-wide cap
+kemb probe ./cases --sample --json                     # samples embedded in the JSON
+```
+
+`--sample` extracts the first words of every document **locally** — PDFs via
+`pypdf`, Office/OpenDocument files via their XML, text/HTML directly — and
+renders one text file of XML-tagged blocks (the structure LLMs parse most
+reliably): a `<document>` tag per file carrying labeled metadata attributes
+(`path`, `size`, `pages`, `modified`, `type`, `text` status), with up to
+`--sample-words` words of content as the body. An agent can read that single
+file and weigh an entire multi-directory case corpus — what each document is,
+which are scans (PDFs with no text layer collapse to a self-closing tag with
+a `note` flagging them for OCR-capable parse tiers), what to parse now versus
+defer — without uploading anything or running a per-file model pass.
+
+```xml
+<corpus_sample generated="2026-06-10T01:52:23Z" files="4" total_size="4.3 KB"
+               sampled_words="69" status="no-text: 1, ok: 3">
+<document path="smith/complaint.pdf" size="2.2 KB" pages="4" modified="..." type=".pdf" text="ok">
+IN THE DISTRICT COURT Plaintiff John Smith alleges breach of contract and fraud ...
+</document>
+<document path="smith/exhibit-a.pdf" size="1.7 KB" pages="12" modified="..." type=".pdf"
+          text="no-text" note="no text layer — likely a scan; needs an OCR-capable parse tier"/>
+...
+</corpus_sample>
+```
+
+`--sample-budget` caps total sampled words corpus-wide so the output stays
+readable in one context window; files past the budget keep their inventory
+line but skip the text. PDFs also gain page counts — the input you need to
+estimate parse cost (pages × tier) before committing to a batch.
 
 ### --dry-run — preview a job without spending credits
 
 ```bash
 kemb parse    ./contract.pdf --dry-run
-kemb extract  ./invoice.pdf  --schema @invoice.json --dry-run
 kemb classify ./doc.pdf      --rules @rules.json   --dry-run
-kemb split    ./report.pdf   --categories @cats.json --dry-run
 ```
 
 Adds a `--dry-run` mode to every job subcommand. It validates the inputs
-(file exists, schema/rules/categories parse, mutually-exclusive flags
+(file exists, rules parse, mutually-exclusive flags
 aren't combined), resolves the output path, and prints the configuration
 that *would* be sent — without uploading the document or starting a job.
 Pair it with `probe` to scope a batch run before any credits are spent.
 
 ## Real examples
 
-Concrete recipes for the four facets. Schema/rule files referenced below
-ship in [`examples/`](./examples/) so you can copy and run them as-is.
-
-### Extract invoice line items
-
-```bash
-kemb extract ./acme-invoice-2025-04.pdf \
-    --schema @examples/schemas/invoice.json \
-    --output ./acme-2025-04.json
-```
-
-Pulls vendor, invoice number, dates, every line item, and totals into one
-typed JSON file you can pipe into a ledger or a spreadsheet.
+Concrete recipes. Rule files referenced below ship in
+[`examples/`](./examples/) so you can copy and run them as-is.
 
 ### Route incoming docs by type
 
@@ -228,17 +234,6 @@ Each call writes `<file>.classify.json` with the matched label (contract,
 invoice, receipt, correspondence, other) plus a confidence score — wire that
 into a shell loop and `mv` files into per-type folders.
 
-### Split a research report by section
-
-```bash
-kemb split ./annual-report.pdf \
-    --categories @examples/categories/report_sections.json
-```
-
-Get back labeled page ranges for intro, methodology, results, discussion,
-references, and appendix — ready to feed into per-section summarizers or
-chunkers.
-
 ### Parse a multi-column scan to markdown
 
 ```bash
@@ -247,6 +242,18 @@ kemb parse ./scanned-deposition.pdf --tier agentic --strip-noise
 
 `agentic` handles the multi-column OCR; `--strip-noise` drops repeating
 header/footer artifacts so the resulting markdown is paste-ready.
+
+### Triage a multi-directory case corpus before spending credits
+
+```bash
+kemb probe ./case-files --sample --output corpus_sample.txt
+```
+
+One zero-credit command produces an XML-tagged sample of the whole tree —
+first words, page counts, and scan flags for every document.
+Hand `corpus_sample.txt` to Claude (or read it yourself) to decide doc types,
+parse tiers, and priorities, then run `parse` over only the files that earn
+it — and extract or split from the resulting markdown yourself.
 
 ### Scope a directory, then run the batch
 
@@ -285,10 +292,12 @@ each request to a facet under `references/`:
 | Request                                                                                                                  | Facet doc                |
 |--------------------------------------------------------------------------------------------------------------------------|--------------------------|
 | "Parse this PDF with LlamaParse." / "OCR this scan." / "Convert this Excel to markdown."                                 | `references/parse.md`    |
-| "Extract invoice number and total from this PDF." / "Pull fields out as JSON using this schema."                         | `references/extract.md`  |
 | "Classify this document — is it a contract, invoice, or receipt?" / "Route incoming docs by type."                       | `references/classify.md` |
-| "Split this long report into intro / methodology / results / appendix sections."                                         | `references/split.md`    |
-| "What's in this folder? / inventory a directory / scope a batch before parsing."                                         | `references/probe.md`    |
+| "What's in this folder? / triage this corpus / scope a batch before parsing."                                            | `references/probe.md`    |
+
+Requests to extract fields or split sections route through `parse` first;
+Claude then does the structured work from the markdown directly — no extra
+API call, no extra credits.
 
 Invoke the skill explicitly via the slash menu: `/kemb:kemb`.
 
@@ -327,9 +336,10 @@ If you've cloned the repo and want to test changes without pushing:
 
 ## Cost
 
-The four document facets bill per page processed. Parse exposes a tier knob;
-extract / classify / split each have a single per-page rate. `probe` and
-`doctor` are local and free — they never spend a credit.
+The two document facets bill per page processed. Parse exposes a tier knob;
+classify has a single per-page rate. `probe` and `doctor` are local and
+free — they never spend a credit. Post-parse extraction and splitting happen
+in your agent, so they add no LlamaCloud cost at all.
 
 **Parse tiers:**
 
@@ -359,26 +369,23 @@ kemb/
 ├── pyproject.toml                  — packaging for the `kemb` CLI
 ├── src/kemb/
 │   ├── __init__.py                 — public exports
-│   ├── _core.py                    — subcommand dispatcher (parse / extract / classify / split / probe / doctor)
+│   ├── _core.py                    — subcommand dispatcher (parse / classify / probe / doctor)
 │   ├── _common.py                  — shared helpers (auth, SDK loader, REST poller, file upload)
 │   ├── _parse.py                   — LlamaParse v2
-│   ├── _extract.py                 — LlamaExtract v2
 │   ├── _classify.py                — LlamaClassify v2
-│   ├── _split.py                   — LlamaSplit v1 beta
-│   ├── _probe.py                   — recursive directory metadata scan (local-only)
+│   ├── _probe.py                   — local directory scan + corpus text sampling
+│   ├── _sample.py                  — per-format local text extractors (pypdf, zip/XML)
 │   └── _doctor.py                  — zero-credit preflight
 ├── skills/kemb/                    — single orchestrating skill
 │   ├── SKILL.md                    — routes requests to facets
 │   ├── scripts/kemb_cli.py         — shim into src/kemb/
 │   └── references/
 │       ├── parse.md                — parse facet (LlamaParse v2)
-│       ├── extract.md              — extract facet (LlamaExtract v2)
 │       ├── classify.md             — classify facet (LlamaClassify v2)
-│       ├── split.md                — split facet (LlamaSplit v1 beta)
-│       ├── probe.md                — probe facet (local directory scan)
+│       ├── probe.md                — probe facet (local scan + triage sample)
 │       ├── rest_api.md             — LlamaCloud v2 REST reference
 │       └── troubleshooting.md      — common failure modes
-├── examples/                       — copy-pasteable schemas, rules, categories
+├── examples/                       — copy-pasteable classifier rules
 ├── docs/
 │   └── goal.txt                    — corpus-curation north star
 ├── tests/                          — pytest suite

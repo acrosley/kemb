@@ -1,4 +1,4 @@
-"""Shared helpers for every LlamaCloud capability (parse, extract, classify, split).
+"""Shared helpers for every LlamaCloud capability (parse, classify).
 
 Auth, error surfacing, SDK loading, and the REST polling loop all live here so
 that the per-feature modules stay focused on what makes them different.
@@ -110,8 +110,8 @@ def poll_job(
 
     `status_getter` extracts the status string from each response payload;
     defaults to the v2 parse shape (`.job.status` with `.status` fallback).
-    Returns the final payload dict. Handles both uppercase (parse/extract/
-    classify) and lowercase (split beta) status strings.
+    Returns the final payload dict. Handles uppercase and lowercase status
+    strings (endpoints differ).
     """
     import requests  # type: ignore
 
@@ -169,10 +169,10 @@ def _failure_reason(payload: dict) -> str:
 def upload_file_rest(file_path, purpose: str = "user_data") -> str:
     """Upload a file via REST and return its `file_id`.
 
-    Extract / classify / split all consume an already-uploaded file id rather
-    than the raw bytes (parse is the exception — it accepts a multipart upload
-    in one shot). Endpoint: POST /api/v1/beta/files. `purpose` indicates how
-    the file will be used (`user_data`, `parse`, `extract`, `classify`,
+    Classify consumes an already-uploaded file id rather than the raw bytes
+    (parse is the exception — it accepts a multipart upload in one shot).
+    Endpoint: POST /api/v1/beta/files. `purpose` indicates how the file will
+    be used (the API accepts `user_data`, `parse`, `extract`, `classify`,
     `split`, `sheet`, or `agent_app`).
     """
     requests = import_requests()
@@ -268,7 +268,7 @@ def _human_size(n: int) -> str:
 
 
 def render_dry_run(command: str, fields: dict) -> str:
-    """Render a dry-run preview shared by parse/extract/classify/split.
+    """Render a dry-run preview shared by parse/classify.
 
     Field values are coerced to short strings here so callers can pass
     paths, ints, or arbitrary objects without thinking about it. The
