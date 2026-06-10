@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from llamaparse_cli import _extract
+from kemb import _extract
 
 
 # ---------------------------------------------------------------------------

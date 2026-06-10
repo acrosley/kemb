@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from llamaparse_cli import _core, _probe, _sample
+from kemb import _core, _probe, _sample
 
 
 # ---------------------------------------------------------------------------

@@ -1,25 +1,26 @@
 {
-  "name": "llamaparse-plugin",
-  "version": "0.5.0",
-  "description": "LlamaCloud document operations for Claude Code and Cowork: parse PDFs/Office docs/scans to markdown, extract structured JSON against a schema (LlamaExtract), categorize documents with confidence scores (LlamaClassify), and split long documents into typed sections (LlamaSplit beta). Each capability ships as its own lazy-loaded skill so feature context only enters Claude's window when needed.",
+  "name": "kemb",
+  "version": "0.6.0",
+  "description": "Kemb combs document corpora into agent-ready form. Point Claude at a directory of PDFs; probe the tree, draft a corpus plan (inventory, taxonomy, cost), and on approval execute a pass that classifies, routes, parses, and renders documents into a markdown mirror with hash-stamped frontmatter and a queryable manifest. Single-file parse, extract, classify, and split remain as facets of the kembing process, powered by LlamaCloud where needed.",
   "author": {
     "name": "Andrew Crosley",
     "email": "crosleya1394@gmail.com"
   },
   "license": "MIT",
-  "homepage": "https://github.com/acrosley/llamaparse-plugin",
-  "repository": "https://github.com/acrosley/llamaparse-plugin.git",
+  "homepage": "https://github.com/acrosley/kemb",
+  "repository": "https://github.com/acrosley/kemb.git",
   "keywords": [
-    "llamaparse",
-    "llamaextract",
-    "llamaclassify",
-    "llamasplit",
-    "llamacloud",
+    "kemb",
+    "kembing",
+    "corpus-curation",
+    "agent-ready",
+    "rag",
     "pdf",
     "ocr",
     "document-parsing",
     "structured-extraction",
     "classification",
-    "markdown"
+    "markdown",
+    "llamacloud"
   ]
 }

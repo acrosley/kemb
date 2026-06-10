@@ -41,3 +41,8 @@ coverage.xml
 *.md.tmp
 scratch/
 out/
+
+# Local rebrand drafts (kept local, not shipped)
+docs/kemb-rebrand.md
+docs/rebrand-scratchpad.txt
+docs/star-idea.txt

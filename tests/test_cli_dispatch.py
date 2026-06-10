@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from llamaparse_cli import _core
+from kemb import _core
 
 
 # ---------------------------------------------------------------------------
@@ -47,7 +47,7 @@ class TestBuildParser:
 
         parser = _core.build_parser()
         assert isinstance(parser, argparse.ArgumentParser)
-        assert parser.prog == "llamaparse"
+        assert parser.prog == "kemb"
 
     def test_all_subcommands_registered(self):
         """parse / extract / classify / split must all be selectable subcommands."""
@@ -70,7 +70,7 @@ class TestBuildParser:
 
 
 class TestMainHelp:
-    """``llamaparse <cmd> --help`` should exit with code 0 for every subcommand."""
+    """``kemb <cmd> --help`` should exit with code 0 for every subcommand."""
 
     @pytest.mark.parametrize("cmd", ["parse", "extract", "classify", "split"])
     def test_subcommand_help_exits_cleanly(self, cmd, capsys):
@@ -96,7 +96,7 @@ class TestMainHelp:
 
 
 class TestVersionFlag:
-    """``llamaparse --version`` / ``-V`` should print the package version and exit 0."""
+    """``kemb --version`` / ``-V`` should print the package version and exit 0."""
 
     @pytest.mark.parametrize("flag", ["--version", "-V"])
     def test_version_flag_prints_and_exits_cleanly(self, flag, capsys):
@@ -105,5 +105,5 @@ class TestVersionFlag:
         assert exc_info.value.code == 0
         captured = capsys.readouterr()
         # argparse's version action writes "<prog> <version>" to stdout
-        assert captured.out.startswith("llamaparse ")
+        assert captured.out.startswith("kemb ")
         assert _core.__version__ in captured.out

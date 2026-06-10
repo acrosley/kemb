@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to `llamaparse-plugin` are documented in this file.
+All notable changes to `kemb` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -23,6 +23,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   credits, no per-file model pass required.
 - New dependency: `pypdf>=4.0` (pure-Python; powers PDF sampling and page
   counts).
+
+### Removed
+- `docs/llamacloud/` — the local mirror of the LlamaCloud docs site
+  (~900 pages) and its support tooling: `scripts/fetch_docs.py`,
+  `scripts/check_docs_staleness.py`, `scripts/docs_common.py`, and the
+  weekly `docs-staleness` workflow with its `docs-drift` tracking issues.
+  Nothing in the package, skill, or tests referenced the mirror — the
+  skill ships its own distilled per-facet references — and the weekly
+  drift triage competed with building the corpus-curation core
+  (`docs/goal.txt`). The mirror remains available in git history.
+
+## [0.6.0] - 2026-05-30
+
+### Changed
+- **Rebrand: `llamaparse-plugin` → `kemb`.** Repository, Python package
+  (`llamaparse_cli` → `kemb`), CLI command (`llamaparse` → `kemb`), and
+  plugin/marketplace identifiers all renamed. Project reframed from
+  "LlamaCloud wrapper" to corpus curation for agent-ready PDF libraries
+  (see `docs/goal.txt`). The four LlamaCloud APIs (parse, extract,
+  classify, split) remain as facets under a single orchestrating `kemb`
+  skill, now joined by a local `probe` facet (see Added); the previous four
+  user-facing skills folded into
+  `skills/kemb/references/{parse,extract,classify,split}.md`.
+
+### Removed
+- `llamaparse` CLI command — no deprecated alias. Use `kemb` instead.
+- `skills/llamaparse/`, `skills/llamaextract/`, `skills/llamaclassify/`,
+  `skills/llamasplit/` — replaced by the single `skills/kemb/` orchestrator
+  with per-facet reference docs.
+
+### Added
 - `probe` subcommand: recursively walks a target directory and reports
   per-file metadata (path, size, mtime, extension, mime type, whether the
   format is LlamaCloud-friendly) with a summary block at the end. Supports
@@ -120,9 +151,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Marketplace and plugin manifests under `.claude-plugin/`.
 - MIT license.
 
-[Unreleased]: https://github.com/acrosley/llamaparse-plugin/compare/v0.5.0...HEAD
-[0.5.0]: https://github.com/acrosley/llamaparse-plugin/compare/v0.4.0...v0.5.0
-[0.4.0]: https://github.com/acrosley/llamaparse-plugin/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/acrosley/llamaparse-plugin/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/acrosley/llamaparse-plugin/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/acrosley/llamaparse-plugin/releases/tag/v0.1.0
+[Unreleased]: https://github.com/acrosley/kemb/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/acrosley/kemb/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/acrosley/kemb/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/acrosley/kemb/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/acrosley/kemb/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/acrosley/kemb/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/acrosley/kemb/releases/tag/v0.1.0

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from llamaparse_cli import _classify
+from kemb import _classify
 
 
 # ---------------------------------------------------------------------------

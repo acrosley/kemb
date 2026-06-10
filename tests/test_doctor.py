@@ -10,7 +10,7 @@ import pytest
 import requests
 import requests_mock
 
-from llamaparse_cli import _common, _core, _doctor
+from kemb import _common, _core, _doctor
 
 
 # ---------------------------------------------------------------------------
@@ -153,7 +153,7 @@ class TestCheckApiReachable:
 
 
 # ---------------------------------------------------------------------------
-# End-to-end: `llamaparse doctor` through _core.main
+# End-to-end: `kemb doctor` through _core.main
 # ---------------------------------------------------------------------------
 
 
@@ -164,7 +164,7 @@ class TestDoctorCommand:
         rc = _core.main(["doctor", "--offline"])
         assert rc == 0
         out = capsys.readouterr().out
-        assert "llamaparse doctor" in out
+        assert "kemb doctor" in out
         assert "auth probe skipped" in out
 
     def test_offline_doctor_fails_without_key(self, capsys, monkeypatch):
