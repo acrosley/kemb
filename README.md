@@ -380,21 +380,12 @@ kemb/
 │       └── troubleshooting.md      — common failure modes
 ├── examples/                       — copy-pasteable schemas, rules, categories
 ├── docs/
-│   ├── goal.txt                    — corpus-curation north star
-│   └── llamacloud/                 — local mirror of the entire LlamaCloud
-│                                     docs site (~900 pages) + sha256 manifest
-├── scripts/
-│   ├── fetch_docs.py               — refresh the mirror from upstream
-│   ├── check_docs_staleness.py     — compare local hashes against upstream
-│   └── docs_common.py              — shared helpers
+│   └── goal.txt                    — corpus-curation north star
 ├── tests/                          — pytest suite
 ├── CHANGELOG.md                    — version history
 ├── CONTRIBUTING.md                 — dev setup and PR guide
 └── README.md
 ```
-
-The docs mirror has its own [README](./docs/llamacloud/README.md) covering
-scope, layout, and the weekly staleness CI job that watches for upstream drift.
 
 The plugin skill and the standalone CLI both shell into the same `kemb`
 package, so the two invocation paths never drift.
