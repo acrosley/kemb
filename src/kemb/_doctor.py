@@ -56,6 +56,14 @@ def add_subparser(subparsers):
         default=10.0,
         help="Seconds to wait for the auth probe (default: 10).",
     )
+    p.add_argument(
+        "--auto-install",
+        action="store_true",
+        help="No-op: doctor only reports what's installed and never "
+             "installs anything. Accepted so callers (including the bundled "
+             "skill shim, which also uses it to bootstrap kemb itself when "
+             "relocated) can pass it on every facet.",
+    )
     p.set_defaults(func=run)
     return p
 

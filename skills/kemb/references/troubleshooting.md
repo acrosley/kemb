@@ -34,6 +34,14 @@ A 403 here is a host-side block, not a LlamaParse auth failure. To unblock:
 
 If allowlisting isn't possible (e.g., the user isn't an org owner), fall back to running the shim (`scripts/kemb_cli.py`) outside the sandbox in their normal terminal.
 
+## `error: kemb is not importable`
+
+The shim looked for the kemb package and found neither an installed copy nor the repo's `src/` — this happens when the skill directory has been copied outside the repo (plugin marketplace installs, snapshots). Rerun with `--auto-install` (the shim then pip-installs kemb from GitHub), or install it once:
+
+```bash
+pip install git+https://github.com/acrosley/kemb
+```
+
 ## `ImportError: llama_cloud` or `cannot import name 'LlamaCloud'`
 
 The v2 SDK lives in the `llama-cloud` package:
