@@ -229,6 +229,13 @@ def add_subparser(subparsers):
              f"(default: {DEFAULT_SAMPLE_BUDGET}).",
     )
     p.add_argument(
+        "--auto-install",
+        action="store_true",
+        help="Accepted for parity with parse/classify, which use it to "
+             "install the llama-cloud SDK. probe is local-only and never "
+             "needs the SDK, so this is a no-op.",
+    )
+    p.add_argument(
         "--json",
         action="store_true",
         help="Emit a single JSON document instead of the human-readable table.",
