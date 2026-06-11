@@ -47,7 +47,7 @@ Otherwise fall back to the bundled shim from the skill directory, which adds the
 python scripts/kemb_cli.py parse <file> --tier cost_effective --auto-install
 ```
 
-For the API-backed facets (`parse`, `classify`), pass `--auto-install` from the shim path — it `pip install`s `llama-cloud` on first run if it isn't importable; if the SDK can't install, those facets fall back to a `requests`-only REST path automatically. `probe` and `doctor` are local-only and do **not** accept the flag — passing it there is a usage error (exit 2).
+For the API-backed facets (`parse`, `classify`), pass `--auto-install` from the shim path — it `pip install`s `llama-cloud` on first run if it isn't importable; if the SDK can't install, those facets fall back to a `requests`-only REST path automatically. `probe` and `doctor` do **not** accept the flag — passing it there is a usage error (exit 2). (`probe` is fully local; `doctor` runs a non-billable HEAD reachability probe unless `--offline` is passed.)
 
 ## Routing — which facet for which request
 
