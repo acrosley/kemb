@@ -446,9 +446,11 @@ def _describe_file(path, base) -> FileInfo:
     mime, _ = mimetypes.guess_type(path.name)
 
     try:
-        relative = str(path.relative_to(base))
+        # Forward slashes on every OS: the relative path is the document
+        # identifier across all output formats, so it must be platform-stable.
+        relative = path.relative_to(base).as_posix()
     except ValueError:
-        relative = str(path)
+        relative = path.as_posix()
 
     return {
         "path": str(path),
