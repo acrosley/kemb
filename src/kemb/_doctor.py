@@ -56,6 +56,13 @@ def add_subparser(subparsers):
         default=10.0,
         help="Seconds to wait for the auth probe (default: 10).",
     )
+    p.add_argument(
+        "--auto-install",
+        action="store_true",
+        help="Accepted for parity with parse/classify, which use it to "
+             "install the llama-cloud SDK. doctor only reports what's "
+             "installed and never installs anything, so this is a no-op.",
+    )
     p.set_defaults(func=run)
     return p
 
