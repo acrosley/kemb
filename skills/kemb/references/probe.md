@@ -12,7 +12,7 @@ If the user wants to act on a single known file, skip `probe` and route straight
 
 ## Setup
 
-None. `probe` reads the local filesystem only — no API key, no network, no SDK. The bundled shim runs it the same way as every other facet, except that `probe` does not accept `--auto-install` (that flag exists to install the SDK, which only the API-backed facets need; probe rejects it with exit 2).
+None. `probe` reads the local filesystem only — no API key, no network, no SDK. The bundled shim runs it the same way as every other facet (`--auto-install` is accepted but has nothing to do here — probe needs no SDK).
 
 ## Quick start
 

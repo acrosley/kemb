@@ -14,7 +14,7 @@ Same auth as parse: `LLAMA_CLOUD_API_KEY` exported in the shell.
 test -n "$LLAMA_CLOUD_API_KEY" && echo "key is set" || echo "MISSING: export LLAMA_CLOUD_API_KEY=llx-..."
 ```
 
-The bundled shim accepts `--auto-install` to `pip install llama-cloud` on first run. Always pass it from this skill.
+The bundled shim accepts `--auto-install` to `pip install` anything missing on first run (`llama-cloud`, and `kemb` itself when the skill directory lives outside the repo). Always pass it from this skill.
 
 ## Rules
 
