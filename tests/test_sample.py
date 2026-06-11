@@ -64,8 +64,13 @@ def _make_blank_pdf(path: Path, pages: int = 2) -> None:
         writer.write(fh)
 
 
-def _encrypt_pdf(src: Path, dst: Path, *, user_password="", owner_password="") -> None:
-    """Re-write a PDF with encryption (RC4 — pure-python, no crypto extras)."""
+def _encrypt_pdf(src: Path, dst: Path, *, user_password="", owner_password=None) -> None:
+    """Re-write a PDF with encryption (RC4 — pure-python, no crypto extras).
+
+    ``owner_password`` defaults to None so pypdf falls back to the user
+    password; an explicit "" would set an empty owner password on pypdf 4.x,
+    letting decrypt("") open the file through the owner path.
+    """
     from pypdf import PdfWriter
 
     writer = PdfWriter(clone_from=str(src))
