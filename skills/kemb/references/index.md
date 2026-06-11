@@ -63,7 +63,7 @@ Scan (default mode):
   120 words, 3 PDF pages). There is no corpus-wide budget at index time —
   budgets apply when *rendering* for a context window, not when storing.
 
-Query (read-only — never rescans, errors if no index exists yet):
+Query (errors if no index exists yet):
 
 - `--stats` — totals, by-extension and sample-status breakdowns, duplicate
   groups with paths, recorded passes.
@@ -71,6 +71,14 @@ Query (read-only — never rescans, errors if no index exists yet):
   paths (`liability AND audit`, `"net thirty"`, `contra*`). Falls back to a
   plain substring scan when the query isn't valid FTS5 syntax or the sqlite
   build lacks FTS5.
+- `--stale` — skip the sync-on-read refresh (below) for a zero-I/O answer.
+
+**Sync-on-read**: both query modes run the same incremental refresh before
+answering, so results always reflect the corpus as it is on disk right now —
+new files appear, deleted files drop out, no one has to remember to rescan.
+The refresh re-samples changed files with the settings the index was built
+with. It costs a walk + stat pass (seconds even on huge corpora); pass
+`--stale` when you explicitly want the cached view.
 
 `--json` works in every mode for machine-readable output.
 

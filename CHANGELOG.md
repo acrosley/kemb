@@ -16,7 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   100k-file corpora take seconds. Includes duplicate detection by content
   hash, FTS5 full-text search over samples and paths (`--search`, with a
   substring fallback when FTS5 is unavailable), a `--stats` report, and
-  missing-file tracking that preserves history when files reappear. Schema
+  missing-file tracking that preserves history when files reappear. Queries
+  sync on read — `--stats`/`--search` run the incremental refresh before
+  answering (skip with `--stale`) so they never serve a stale view. Schema
   v1 also reserves a `passes` table so the upcoming batch facet can record
   resumable per-file job status without a migration. Local-only: zero
   credits, no network, no API key.

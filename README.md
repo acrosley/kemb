@@ -232,6 +232,11 @@ missing rather than dropped, so a file that reappears keeps its history. The
 schema also reserves a `passes` table for the upcoming batch facet to record
 per-file job status — what will make huge batch runs resumable.
 
+Queries **sync on read**: `--stats` and `--search` run the same incremental
+refresh before answering, so nobody has to remember to rescan — new files
+appear in results, deleted files drop out, and the cost is a walk + stat
+pass. Pass `--stale` for a zero-I/O answer from the cached view.
+
 ### --dry-run — preview a job without spending credits
 
 ```bash

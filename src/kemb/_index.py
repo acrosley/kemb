@@ -12,6 +12,11 @@ pass → mirror): `plan` can partition it into shards with SQL, `pass` can
 record per-file job status in it (making 100k-file batches resumable), and
 the mirror can stamp its frontmatter from the stored content hashes.
 
+Queries (`--stats`, `--search`) run that same incremental refresh before
+answering — sync-on-read, the git model — so they never serve a confidently
+stale view of a corpus that's still on disk. `--stale` skips the refresh for
+zero-I/O reads.
+
 Like probe, this facet is **local-only and free**: no network, no API key,
 no credits.
 
@@ -197,21 +202,28 @@ def add_subparser(subparsers):
         "--stats",
         action="store_true",
         help="Report on the existing index (counts, duplicates, sample "
-             "statuses, passes) without walking the filesystem.",
+             "statuses, passes). Runs an incremental refresh first unless "
+             "--stale is passed.",
     )
     p.add_argument(
         "--search",
         metavar="QUERY",
         default=None,
         help="Full-text search the indexed samples and paths (FTS5 syntax; "
-             "falls back to substring match when FTS5 is unavailable). "
-             "Read-only — does not rescan.",
+             "falls back to substring match when FTS5 is unavailable).",
     )
     p.add_argument(
         "--limit",
         type=int,
         default=20,
         help="Max results for --search (default: 20).",
+    )
+    p.add_argument(
+        "--stale",
+        action="store_true",
+        help="Skip the incremental refresh --stats/--search run before "
+             "answering; serve whatever the index already holds (zero "
+             "filesystem reads).",
     )
     p.add_argument(
         "--full",
@@ -352,6 +364,8 @@ def open_index(db_path: Path, root: Path, *, create: bool) -> sqlite3.Connection
                     ("created", _now_iso()),
                     ("fts", "1" if fts else "0"),
                     ("kemb_version", _kemb_version()),
+                    ("sample_words", str(DEFAULT_SAMPLE_WORDS)),
+                    ("sample_pages", str(DEFAULT_SAMPLE_PAGES)),
                 ],
             )
         return conn
@@ -607,6 +621,13 @@ def scan_into_index(
                 "UPDATE files SET last_seen = ?, missing = 0 WHERE id = ?",
                 seen_ids,
             )
+        # Remember the sample settings so the sync-on-read refresh resamples
+        # changed files the same way this scan did, not at the defaults.
+        conn.executemany(
+            "INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)",
+            [("sample_words", str(sample_words)),
+             ("sample_pages", str(sample_pages))],
+        )
 
     totals = conn.execute(
         """
@@ -890,9 +911,48 @@ def render_search(result: dict) -> str:
 # --------------------------------------------------------------------------- #
 
 
+def _refresh_before_query(conn, target: Path, db_path: Path) -> None:
+    """Sync-on-read: reconcile the index with the filesystem before answering.
+
+    A persistent index's worst failure mode is a confidently stale answer —
+    a --search that misses yesterday's files still *looks* authoritative. An
+    incremental refresh is just walk + stat for unchanged files, so queries
+    pay seconds at most. Re-sampling honors the settings the index was built
+    with (stored in meta). Reports to stderr only when something moved;
+    stdout stays clean for --json consumers.
+    """
+    if not target.is_dir():
+        print(
+            f"warning: corpus root {target} not found; results may be stale "
+            "(pass --stale to silence this)",
+            file=sys.stderr,
+        )
+        return
+    meta = _meta(conn)
+    report = scan_into_index(
+        conn, target, db_path,
+        sample_words=int(meta.get("sample_words", DEFAULT_SAMPLE_WORDS)),
+        sample_pages=int(meta.get("sample_pages", DEFAULT_SAMPLE_PAGES)),
+    )
+    moved = {
+        k: report[k]
+        for k in ("added", "changed", "restored", "newly_missing")
+        if report[k]
+    }
+    if moved:
+        rendered = ", ".join(f"{v:,} {k.replace('_', ' ')}" for k, v in moved.items())
+        print(
+            f"refreshed index before query: {rendered} "
+            f"({report['elapsed_s']}s)",
+            file=sys.stderr,
+        )
+
+
 def run(args):
     if args.stats and args.search is not None:
         err("--stats and --search are mutually exclusive")
+    if args.stale and not (args.stats or args.search is not None):
+        err("--stale only applies to --stats/--search (a plain scan always reads)")
     if args.limit <= 0:
         err("--limit must be > 0")
     if args.max_depth is not None and args.max_depth < 0:
@@ -913,6 +973,8 @@ def run(args):
 
     conn = open_index(db_path, target, create=not read_only)
     try:
+        if read_only and not args.stale:
+            _refresh_before_query(conn, target, db_path)
         if args.stats:
             stats = index_stats(conn, db_path)
             out = json.dumps(stats, indent=2, ensure_ascii=False) \

@@ -421,6 +421,107 @@ class TestGuards:
 
 
 # ---------------------------------------------------------------------------
+# Sync-on-read: queries refresh the index before answering
+# ---------------------------------------------------------------------------
+
+
+class TestSyncOnRead:
+    def test_search_sees_file_added_after_last_scan(self, tmp_path, capsys):
+        make_corpus(tmp_path)
+        _core.main(["index", str(tmp_path)])
+        write(tmp_path / "late-arrival.txt", "indemnification rider", mtime=T1)
+        capsys.readouterr()
+
+        rc = _core.main(
+            ["index", str(tmp_path), "--search", "indemnification", "--json"]
+        )
+
+        assert rc == 0
+        captured = capsys.readouterr()
+        result = json.loads(captured.out)
+        assert [r["relative"] for r in result["results"]] == ["late-arrival.txt"]
+        assert "1 added" in captured.err  # refresh reported, on stderr only
+
+    def test_stats_sees_deletion_after_last_scan(self, tmp_path, capsys):
+        make_corpus(tmp_path)
+        _core.main(["index", str(tmp_path)])
+        (tmp_path / "notes.md").unlink()
+        capsys.readouterr()
+
+        rc = _core.main(["index", str(tmp_path), "--stats", "--json"])
+
+        assert rc == 0
+        stats = json.loads(capsys.readouterr().out)
+        assert stats["missing_files"] == 1
+
+    def test_stale_skips_the_refresh(self, tmp_path, capsys):
+        make_corpus(tmp_path)
+        _core.main(["index", str(tmp_path)])
+        write(tmp_path / "late-arrival.txt", "indemnification rider", mtime=T1)
+        capsys.readouterr()
+
+        _core.main(
+            ["index", str(tmp_path), "--search", "indemnification",
+             "--json", "--stale"]
+        )
+
+        captured = capsys.readouterr()
+        assert json.loads(captured.out)["results"] == []
+        assert captured.err == ""
+
+    def test_refresh_quiet_when_nothing_moved(self, tmp_path, capsys):
+        make_corpus(tmp_path)
+        _core.main(["index", str(tmp_path)])
+        capsys.readouterr()
+        _core.main(["index", str(tmp_path), "--stats"])
+        assert capsys.readouterr().err == ""
+
+    def test_refresh_honors_stored_sample_settings(self, tmp_path, capsys):
+        make_corpus(tmp_path)
+        _core.main(["index", str(tmp_path), "--sample-words", "2"])
+        write(tmp_path / "late-arrival.txt",
+              "one two three four five six", mtime=T1)
+        capsys.readouterr()
+
+        _core.main(["index", str(tmp_path), "--stats"])
+
+        (row,) = query(
+            tmp_path,
+            "SELECT sample_words FROM files WHERE relative = ?",
+            "late-arrival.txt",
+        )
+        assert row["sample_words"] == 2  # not the default 120
+
+    def test_query_survives_vanished_corpus_root(self, tmp_path, capsys):
+        """A detached index (--db elsewhere, corpus gone) still answers,
+        with a staleness warning instead of a crash."""
+        corpus = tmp_path / "corpus"
+        write(corpus / "doc.txt", "quarterly revenue")
+        db = tmp_path / "detached.db"
+        _core.main(["index", str(corpus), "--db", str(db)])
+        import shutil
+        shutil.rmtree(corpus)
+        capsys.readouterr()
+
+        rc = _core.main(
+            ["index", str(corpus), "--db", str(db),
+             "--search", "quarterly", "--json"]
+        )
+
+        assert rc == 0
+        captured = capsys.readouterr()
+        result = json.loads(captured.out)
+        assert [r["relative"] for r in result["results"]] == ["doc.txt"]
+        assert "may be stale" in captured.err
+
+    def test_stale_requires_a_query_mode(self, tmp_path):
+        make_corpus(tmp_path)
+        with pytest.raises(SystemExit) as exc_info:
+            _core.main(["index", str(tmp_path), "--stale"])
+        assert exc_info.value.code == 2
+
+
+# ---------------------------------------------------------------------------
 # CLI integration
 # ---------------------------------------------------------------------------
 
