@@ -5,6 +5,7 @@ Subcommands:
     parse     — convert a document to markdown/text (the original behaviour)
     classify  — categorize a document into one of a defined set of classes
     probe     — recursively scan a directory and report file metadata
+    index     — maintain a persistent SQLite inventory of a corpus
     doctor    — preflight checks (Python, deps, API key, reachability)
 
 Once `parse` has produced clean markdown, schema extraction and section
@@ -23,14 +24,14 @@ import argparse
 import sys
 from importlib.metadata import PackageNotFoundError, version as _pkg_version
 
-from . import _classify, _doctor, _parse, _probe
+from . import _classify, _doctor, _index, _parse, _probe
 
 try:
     __version__ = _pkg_version("kemb")
 except PackageNotFoundError:
     __version__ = "0.0.0+unknown"
 
-SUBCOMMANDS = ("parse", "classify", "probe", "doctor")
+SUBCOMMANDS = ("parse", "classify", "probe", "index", "doctor")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -47,6 +48,8 @@ def build_parser() -> argparse.ArgumentParser:
             "  kemb classify ./doc.pdf --rules @rules.json\n"
             "  kemb probe ./inbox                           # scan dir metadata\n"
             "  kemb probe ./cases --sample                  # corpus triage sample\n"
+            "  kemb index ./corpus                          # persistent incremental inventory\n"
+            "  kemb index ./corpus --search 'net 30'        # full-text search the index\n"
             "  kemb parse ./contract.pdf --dry-run          # validate without uploading\n"
             "  kemb doctor                                  # preflight checks\n"
             "\n"
@@ -64,6 +67,7 @@ def build_parser() -> argparse.ArgumentParser:
     _parse.add_subparser(subparsers)
     _classify.add_subparser(subparsers)
     _probe.add_subparser(subparsers)
+    _index.add_subparser(subparsers)
     _doctor.add_subparser(subparsers)
     return p
 
