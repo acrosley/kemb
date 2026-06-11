@@ -7,8 +7,8 @@
 [![Changelog](https://img.shields.io/badge/changelog-keepachangelog-orange.svg)](./CHANGELOG.md)
 
 > Comb document corpora into agent-ready form. One CLI, one Claude skill,
-> two LlamaCloud-backed facets — parse and classify — plus a local,
-> zero-credit `probe` for triaging a directory before you spend a thing.
+> two LlamaCloud-backed facets — parse and classify — plus local, zero-credit
+> `probe` and `index` for triaging a directory before you spend a thing.
 
 **Kembing** is the discipline of preparing document corpora for agents: survey
 the pile, plan the pass, then comb each document into a structured markdown
@@ -23,6 +23,7 @@ provenance) is in active development — see [`docs/goal.txt`](./docs/goal.txt).
 | **parse**   | Document → clean markdown / text (tables, multi-column, scans)  | LlamaParse v2       |
 | **classify**| Document + categories → matched label + confidence              | LlamaClassify v2    |
 | **probe**   | Directory → per-file inventory + text samples for triage         | local, zero credits |
+| **index**   | Corpus → persistent SQLite inventory; incremental rescans, dedup, full-text search | local, zero credits |
 
 **Why only two API facets?** Because the third party in the room is an LLM.
 Once `parse` has produced clean markdown, the consuming agent extracts fields
@@ -32,8 +33,9 @@ zero extra plumbing, full conversation context. The former `extract` and
 routing documents *before* parsing (scans and layout-heavy files an agent
 can't read locally).
 
-`probe` and `doctor` are local, zero-credit tools — `probe` scopes a directory
-and `doctor` runs a preflight check — neither uploads a document or starts a job.
+`probe`, `index`, and `doctor` are local, zero-credit tools — `probe` scopes a
+directory, `index` keeps a persistent inventory of it, and `doctor` runs a
+preflight check — none of them uploads a document or starts a job.
 
 ## 30-second quickstart
 
@@ -71,7 +73,7 @@ That's it. `classify` follows the same shape — see
 | Mode   | What you run                                                                                                  | What you get                                                                                                                                                            |
 |--------|---------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Plugin | `/plugin install kemb@kemb` in Claude Code (or "Add marketplace from GitHub" in Cowork)                       | One orchestrating skill that routes by facet, with per-facet reference docs that load on demand.                                                                        |
-| CLI    | `pipx install git+https://github.com/acrosley/kemb`                                                           | A `kemb` command on your PATH with `parse`, `classify`, and `probe` subcommands and a preflight `doctor`.                                                               |
+| CLI    | `pipx install git+https://github.com/acrosley/kemb`                                                           | A `kemb` command on your PATH with `parse`, `classify`, `probe`, and `index` subcommands and a preflight `doctor`.                                                      |
 
 You only need a LlamaCloud API key — grab one at
 <https://cloud.llamaindex.ai/api-key>.
@@ -115,6 +117,7 @@ kemb --help                                    # top-level help
 kemb parse     --help
 kemb classify  --help
 kemb probe     --help                          # scan a directory (zero credits)
+kemb index     --help                          # persistent corpus index (zero credits)
 kemb doctor                                    # preflight checks (zero credits)
 ```
 
@@ -203,6 +206,31 @@ IN THE DISTRICT COURT Plaintiff John Smith alleges breach of contract and fraud 
 readable in one context window; files past the budget keep their inventory
 line but skip the text. PDFs also gain page counts — the input you need to
 estimate parse cost (pages × tier) before committing to a batch.
+
+### index — persistent corpus inventory, incremental rescans (zero credits)
+
+```bash
+kemb index ./corpus                          # create or refresh the index
+kemb index ./corpus --stats                  # report on it, no rescan
+kemb index ./corpus --search "force majeure" # full-text search the samples
+kemb index ./corpus --full                   # force re-read of every file
+```
+
+`probe` is stateless — it re-reads everything on every run, which stops
+scaling somewhere in the thousands of files. `index` is the persistent
+version: one SQLite database per corpus (`<corpus>/.kemb/index.db`) holding
+each file's metadata, a sha256 content hash, and the same locally extracted
+text sample. Rescans are **incremental**: only files whose size or mtime
+changed get re-read, so the first scan pays full price and every scan after
+takes seconds — 100k-file corpora stay workable.
+
+On top of the inventory you get duplicate detection (same hash, different
+paths — parse one, reuse for its twins), FTS5 full-text search over the
+samples and paths (`--search "liability AND audit"`), and a `--stats` report
+with by-extension and scan-vs-text breakdowns. Deleted files are marked
+missing rather than dropped, so a file that reappears keeps its history. The
+schema also reserves a `passes` table for the upcoming batch facet to record
+per-file job status — what will make huge batch runs resumable.
 
 ### --dry-run — preview a job without spending credits
 
