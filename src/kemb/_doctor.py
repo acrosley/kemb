@@ -59,9 +59,10 @@ def add_subparser(subparsers):
     p.add_argument(
         "--auto-install",
         action="store_true",
-        help="Accepted for parity with parse/classify, which use it to "
-             "install the llama-cloud SDK. doctor only reports what's "
-             "installed and never installs anything, so this is a no-op.",
+        help="No-op: doctor only reports what's installed and never "
+             "installs anything. Accepted so callers (including the bundled "
+             "skill shim, which also uses it to bootstrap kemb itself when "
+             "relocated) can pass it on every facet.",
     )
     p.set_defaults(func=run)
     return p

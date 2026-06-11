@@ -42,6 +42,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   drift triage competed with building the corpus-curation core
   (`docs/goal.txt`). The mirror remains available in git history.
 
+### Fixed
+- The bundled skill shim (`skills/kemb/scripts/kemb_cli.py`) now degrades
+  gracefully when the skill directory is copied outside the repo (plugin
+  marketplace installs, snapshots), where its repo-relative `src/` lookup
+  can't work: it falls back to an installed `kemb` package, pip-installs
+  kemb from `git+https://github.com/acrosley/kemb` under `--auto-install`
+  (mirroring the llama-cloud auto-install), and otherwise exits with a
+  one-line remedy instead of an `ImportError` traceback.
+
 ## [0.6.0] - 2026-05-30
 
 ### Changed

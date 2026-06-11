@@ -229,13 +229,6 @@ def add_subparser(subparsers):
              f"(default: {DEFAULT_SAMPLE_BUDGET}).",
     )
     p.add_argument(
-        "--auto-install",
-        action="store_true",
-        help="Accepted for parity with parse/classify, which use it to "
-             "install the llama-cloud SDK. probe is local-only and never "
-             "needs the SDK, so this is a no-op.",
-    )
-    p.add_argument(
         "--json",
         action="store_true",
         help="Emit a single JSON document instead of the human-readable table.",
@@ -245,6 +238,15 @@ def add_subparser(subparsers):
         type=Path,
         default=None,
         help="Write the probe report to this file (in addition to stdout).",
+    )
+    p.add_argument(
+        "--auto-install",
+        action="store_true",
+        help="No-op: probe is local-only and never needs the llama-cloud "
+             "SDK that parse/classify install with this flag. Accepted so "
+             "callers (including the bundled skill shim, which also uses it "
+             "to bootstrap kemb itself when relocated) can pass it on every "
+             "facet.",
     )
     p.set_defaults(func=run)
     return p

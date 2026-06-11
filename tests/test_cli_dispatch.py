@@ -64,6 +64,26 @@ class TestBuildParser:
             assert cmd in choices, f"{cmd!r} subparser missing"
 
 
+class TestAutoInstallAcceptedEverywhere:
+    """The skill shim passes --auto-install on every facet (and consumes it
+    itself to bootstrap a relocated install), so every subcommand must accept
+    the flag — meaningfully on parse/classify, as a no-op on probe/doctor.
+    Otherwise the run dies with `unrecognized arguments` right after the
+    shim's bootstrap succeeds."""
+
+    @pytest.mark.parametrize("argv", [
+        ["parse", "./file.pdf", "--auto-install"],
+        ["classify", "./file.pdf", "--auto-install"],
+        ["probe", ".", "--auto-install"],
+        ["doctor", "--offline", "--auto-install"],
+    ])
+    def test_subcommand_accepts_auto_install(self, argv):
+        parser = _core.build_parser()
+        args = parser.parse_args(argv)  # SystemExit(2) here means rejection
+        assert args.command == argv[0]
+        assert args.auto_install is True
+
+
 # ---------------------------------------------------------------------------
 # main()
 # ---------------------------------------------------------------------------
@@ -93,27 +113,6 @@ class TestMainHelp:
         assert rc == 2
         captured = capsys.readouterr()
         assert "usage" in captured.err.lower()
-
-
-class TestAutoInstallFlag:
-    """Every subcommand must accept ``--auto-install``.
-
-    Only parse/classify act on it (it installs the llama-cloud SDK); probe
-    and doctor take it as a no-op so callers that pass it uniformly don't
-    die with exit 2.
-    """
-
-    @pytest.mark.parametrize("argv", [
-        ["parse", "./contract.pdf", "--auto-install"],
-        ["classify", "./doc.pdf", "--auto-install"],
-        ["probe", "./inbox", "--auto-install"],
-        ["doctor", "--auto-install"],
-    ])
-    def test_subcommand_accepts_auto_install(self, argv):
-        parser = _core.build_parser()
-        # An unknown flag would raise SystemExit(2) here.
-        args = parser.parse_args(argv)
-        assert args.auto_install is True
 
 
 class TestVersionFlag:
