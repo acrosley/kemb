@@ -52,11 +52,11 @@ Always pass `--auto-install` from the shim path — it `pip install`s whatever i
 ## Routing — which facet for which request
 
 - "Parse / OCR / convert to markdown / read this PDF" → `parse` (`references/parse.md`)
-- "Pull these specific fields out as JSON" / "give me structured data" → `parse` first if it's a scan or complex layout, then extract the fields yourself from the markdown (no API call). For text-friendly files, read the file directly.
+- "Pull these specific fields out as JSON" / "give me structured data" → check the file locally first: extract its text with pypdf (or read it directly for text formats). If real text comes back, work from that **full text** — no probe, no API call. Empty text means a scan: `parse` it, then extract from the markdown. Don't route a single known file through `probe` — probe inventories piles; for one file it's a detour. And never extract fields from a `probe --sample` snippet: samples are first-words truncations for triage and will silently drop fields that appear later in the document.
 - "Classify / categorize / route this document by type" → if you can read it (text layer, or parsed markdown), classify it yourself; use `classify` for scans / layout-heavy files you can't read (`references/classify.md`)
 - "Split this long document into intro / methodology / results / sections" → `parse` to markdown, then split by headings yourself (no API call)
 - "What's in this folder? / inventory a directory / scope a batch before parsing / which of these files can LlamaCloud take?" → `probe` (`references/probe.md`)
-- "What ARE these documents? / triage this corpus / which of these are scans / what's worth parsing?" → `probe --sample` (`references/probe.md`) — local first-words sample of every file, readable in one pass
+- "What ARE these documents? / triage this corpus / which of these are scans / what's worth parsing?" → `probe --sample` (`references/probe.md`) — local first-words sample of every file, readable in one pass. For PDFs the sample marks `text="no-text"` (scans), you can still identify the content for free: you are multimodal — Read the PDF's first page (or render it to an image) and look at it before deciding whether and at what tier to parse.
 - "What does each facet cost? / how does v2 of the API work?" → `references/rest_api.md`
 - Setup failures, weird response shapes, network blocks, encrypted PDFs → `references/troubleshooting.md`
 
