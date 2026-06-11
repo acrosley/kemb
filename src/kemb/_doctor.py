@@ -56,6 +56,13 @@ def add_subparser(subparsers):
         default=10.0,
         help="Seconds to wait for the auth probe (default: 10).",
     )
+    p.add_argument(
+        "--auto-install",
+        action="store_true",
+        help="No-op for doctor; accepted so the bundled skill shim can pass "
+             "--auto-install on every facet (the shim uses it to bootstrap "
+             "kemb itself when relocated).",
+    )
     p.set_defaults(func=run)
     return p
 

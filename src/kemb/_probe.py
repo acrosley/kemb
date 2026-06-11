@@ -239,6 +239,13 @@ def add_subparser(subparsers):
         default=None,
         help="Write the probe report to this file (in addition to stdout).",
     )
+    p.add_argument(
+        "--auto-install",
+        action="store_true",
+        help="No-op for probe; accepted so the bundled skill shim can pass "
+             "--auto-install on every facet (the shim uses it to bootstrap "
+             "kemb itself when relocated).",
+    )
     p.set_defaults(func=run)
     return p
 
