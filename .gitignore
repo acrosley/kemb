@@ -37,6 +37,9 @@ htmlcov/
 coverage.xml
 *.log
 
+# Generated benchmark corpus (scripts/build_benchmark_corpus.py)
+kemb_benchmark_corpus/
+
 # Local parse output (developer scratch)
 *.md.tmp
 scratch/
