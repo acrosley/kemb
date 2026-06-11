@@ -18,7 +18,7 @@ test -n "$LLAMA_CLOUD_API_KEY" && echo "key is set" || echo "MISSING: export LLA
 
 If it's missing, ask the user to set it in their shell or host environment before proceeding. Do not prompt for the key in chat — that puts secrets in transcripts. Get a key at <https://cloud.llamaindex.ai/api-key>.
 
-The bundled shim (`scripts/kemb_cli.py`) accepts `--auto-install`, which will `pip install llama-cloud` on first run if it isn't already importable. Always pass `--auto-install` from this skill so the user doesn't have to manage Python deps manually.
+The bundled shim (`scripts/kemb_cli.py`) accepts `--auto-install`, which will `pip install` anything missing on first run — `llama-cloud`, and the `kemb` package itself (from GitHub) when the skill directory lives outside the repo. Always pass `--auto-install` from this skill so the user doesn't have to manage Python deps manually.
 
 If outbound HTTPS to `api.cloud.llamaindex.ai` is blocked (e.g. Cowork sandbox without allowlist), surface the upstream error verbatim and direct the user to **Settings → Capabilities → network allowlist**. Running the shim outside the sandbox is always a fallback.
 

@@ -41,13 +41,13 @@ kemb probe <directory> --sample   # + first words of each doc, for corpus triage
 kemb doctor                       # preflight check
 ```
 
-Otherwise fall back to the bundled shim from the skill directory, which adds the repo's `src/` to `sys.path`:
+Otherwise fall back to the bundled shim from the skill directory, which locates the kemb package on its own — the repo's `src/` when run from a checkout, an installed `kemb` package when the skill directory lives elsewhere (marketplace installs, snapshots):
 
 ```bash
 python scripts/kemb_cli.py parse <file> --tier cost_effective --auto-install
 ```
 
-Always pass `--auto-install` from the shim path — it `pip install`s `llama-cloud` on first run if it isn't importable. If the SDK can't install, every facet falls back to a `requests`-only REST path automatically.
+Always pass `--auto-install` from the shim path — it `pip install`s whatever is missing on first run: `llama-cloud`, and `kemb` itself (from GitHub) when the skill directory is outside the repo. If the SDK can't install, every facet falls back to a `requests`-only REST path automatically.
 
 ## Routing — which facet for which request
 
