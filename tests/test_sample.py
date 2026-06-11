@@ -64,6 +64,20 @@ def _make_blank_pdf(path: Path, pages: int = 2) -> None:
         writer.write(fh)
 
 
+def _encrypt_pdf(src: Path, dst: Path, *, user_password="", owner_password="") -> None:
+    """Re-write a PDF with encryption (RC4 — pure-python, no crypto extras)."""
+    from pypdf import PdfWriter
+
+    writer = PdfWriter(clone_from=str(src))
+    writer.encrypt(
+        user_password=user_password,
+        owner_password=owner_password,
+        algorithm="RC4-128",
+    )
+    with open(dst, "wb") as fh:
+        writer.write(fh)
+
+
 def _make_docx(path: Path, text: str) -> None:
     """Write a minimal .docx (zip with word/document.xml)."""
     document = (
@@ -136,6 +150,26 @@ class TestSampleFile:
         assert result["status"] == _sample.STATUS_NO_TEXT
         assert result["pages"] == 3
         assert "scan" in result["detail"]
+
+    def test_user_password_pdf_reports_encrypted(self, tmp_path: Path):
+        plain = tmp_path / "plain.pdf"
+        _make_text_pdf(plain, "Sealed filing")
+        p = tmp_path / "sealed.pdf"
+        _encrypt_pdf(plain, p, user_password="hunter2")
+        result = _sample.sample_file(p, ".pdf")
+        assert result["status"] == _sample.STATUS_ERROR
+        assert result["detail"] == "encrypted PDF"
+
+    def test_owner_password_only_pdf_still_sampled(self, tmp_path: Path):
+        # An owner password restricts editing, but an empty user password
+        # still opens the file — sampling should proceed normally.
+        plain = tmp_path / "plain.pdf"
+        _make_text_pdf(plain, "Restricted but readable")
+        p = tmp_path / "restricted.pdf"
+        _encrypt_pdf(plain, p, owner_password="secret")
+        result = _sample.sample_file(p, ".pdf")
+        assert result["status"] == _sample.STATUS_OK
+        assert "Restricted but readable" in result["text"]
 
     def test_pdf_respects_word_cap(self, tmp_path: Path):
         p = tmp_path / "long.pdf"
