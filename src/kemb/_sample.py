@@ -100,9 +100,13 @@ def _sample_pdf(path: Path, max_words: int, max_pages: int) -> SampleResult:
     try:
         reader = PdfReader(str(path))
         if reader.is_encrypted:
+            # A wrong password makes decrypt() return PasswordType.NOT_DECRYPTED
+            # (falsy) rather than raise; it only raises on unsupported ciphers.
             try:
-                reader.decrypt("")  # PDFs with an owner password but no user password
+                decrypted = reader.decrypt("")  # owner-password-only PDFs open with ""
             except Exception:
+                decrypted = False
+            if not decrypted:
                 return _result(STATUS_ERROR, detail="encrypted PDF")
         page_count = len(reader.pages)
         chunks: List[str] = []
